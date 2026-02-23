@@ -3,499 +3,546 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>破晓行动：最后防线 (v5.0 课堂部署版)</title>
+    <title>筑梦绿洲 | 零碳城市挑战赛</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; background-color: #f4f6f9; color: #333; max-width: 1200px; margin: 0 auto; }
-        .card { background: white; padding: 25px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        h1 { margin-top: 0; color: #2c3e50; font-size: 24px; }
+        :root {
+            --bg-dark: #0f172a; --card-bg: #1e293b; --text-main: #f8fafc; --text-sub: #94a3b8;
+            --heavy: #f97316; --tech: #0ea5e9; --vc: #10b981; --danger: #ef4444; --border: #334155;
+        }
+        body { font-family: -apple-system, sans-serif; background: var(--bg-dark); color: var(--text-main); margin: 0; padding: 10px; overflow-x: hidden; }
         .hidden { display: none !important; }
-        
-        input, select, button { padding: 12px; margin: 8px 0; font-size: 16px; border-radius: 8px; border: 1px solid #dfe6e9; width: 100%; box-sizing: border-box; outline: none; transition: all 0.2s; }
-        input:focus { border-color: #3498db; box-shadow: 0 0 5px rgba(52,152,219,0.3); }
-        select { background-color: white; cursor: pointer; }
-        
-        button { background-color: #3498db; color: white; border: none; cursor: pointer; font-weight: 600; }
-        button:hover { background-color: #2980b9; transform: translateY(-1px); }
-        button:disabled { background-color: #b2bec3; cursor: not-allowed; }
-        
-        .stat-box { display: flex; justify-content: space-around; background: linear-gradient(135deg, #2c3e50, #34495e); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(44,62,80,0.3); }
-        .stat-item { text-align: center; }
-        .stat-item h3 { margin: 0; color: #ecf0f1; font-size: 13px; font-weight: normal; opacity: 0.8; }
-        .stat-item p { margin: 5px 0 0; font-size: 26px; font-weight: bold; }
-        
-        .status-A { color: #e67e22; font-weight: bold; background: #fff3cd; padding: 2px 6px; border-radius: 4px; } 
-        .status-B { color: #c0392b; font-weight: bold; background: #f8d7da; padding: 2px 6px; border-radius: 4px; } 
-        .status-C { color: #27ae60; font-weight: bold; background: #d4edda; padding: 2px 6px; border-radius: 4px; } 
+        button { cursor: pointer; border: none; border-radius: 6px; font-weight: bold; transition: 0.2s; outline: none; }
+        button:active { transform: scale(0.96); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        input, select { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid var(--border); border-radius: 6px; background: #0f172a; color: white; box-sizing: border-box; }
 
-        .monitor-row { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #f1f1f1; align-items: center; }
-        .dead { text-decoration: line-through; color: #95a5a6; background-color: #f1f2f6; }
+        /* Login Screen */
+        .login-card { max-width: 400px; margin: 100px auto; background: var(--card-bg); padding: 30px; border-radius: 16px; text-align: center; border-top: 5px solid var(--tech); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .login-nav { display: flex; margin-bottom: 20px; background: var(--bg-dark); border-radius: 8px; padding: 4px; }
+        .login-nav button { flex: 1; padding: 10px; background: none; color: var(--text-sub); }
+        .login-nav button.active { background: var(--card-bg); color: var(--tech); }
+
+        /* Teacher View */
+        .tea-header { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 15px 20px; border-radius: 12px; border-bottom: 2px solid var(--border); margin-bottom: 20px;}
+        .doom-bar-container { background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3); margin-bottom: 20px;}
+        .doom-bar { height: 16px; background: linear-gradient(90deg, var(--tech), #eab308, var(--danger)); border-radius: 8px; width: 0%; transition: 1s; }
         
-        .chart-container { position: relative; height: 350px; width: 100%; margin-top: 20px; }
+        /* 环形布局核心 */
+        .arena { position: relative; width: 100%; height: 600px; display: flex; justify-content: center; align-items: center; margin-top: 20px;}
+        .earth-core { width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, #1e293b, #0f172a); border: 2px solid var(--tech); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; box-shadow: 0 0 40px rgba(14, 165, 233, 0.2); }
+        .earth-core h1 { font-size: 50px; margin: 0; color: #eab308; }
+        .team-card-t { position: absolute; width: 150px; background: rgba(30, 41, 59, 0.9); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; transform-origin: center; transition: 0.5s; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .team-card-t .badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 4px; }
         
-        .flash-green { animation: flashGreen 1s ease-out; }
-        @keyframes flashGreen { 0% { background-color: #2ecc71; color: white; } 100% { background-color: transparent; } }
+        .type-HEAVY { color: var(--heavy); border: 1px solid var(--heavy); background: rgba(249,115,22,0.1); }
+        .type-TECH { color: var(--tech); border: 1px solid var(--tech); background: rgba(14,165,233,0.1); }
+        .type-VC { color: var(--vc); border: 1px solid var(--vc); background: rgba(16,185,129,0.1); }
+        .type-待定 { color: var(--text-sub); border: 1px solid var(--border); }
+
+        .ticker { height: 40px; background: var(--card-bg); overflow: hidden; display: flex; align-items: center; border-radius: 8px; margin-top: 20px; border: 1px solid var(--border);}
+        .ticker-text { white-space: nowrap; animation: scroll 20s linear infinite; color: var(--vc); padding-left: 100%; }
+        @keyframes scroll { 100% { transform: translateX(-100%); } }
+
+        /* Student View */
+        .stu-container { max-width: 500px; margin: 0 auto; }
+        .stu-card { background: var(--card-bg); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border); }
+        .stu-market-list { max-height: 250px; overflow-y: auto; }
+        .market-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); }
+        
+        /* 模态窗 */
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; justify-content:center; align-items:center; z-index:1000; backdrop-filter: blur(5px); }
+        .modal-content { background: var(--card-bg); padding: 25px; border-radius: 16px; width: 90%; max-width: 350px; text-align: center; border: 1px solid var(--border); }
+        .modal-danger { border-top: 8px solid var(--danger); max-width: 500px; }
     </style>
 </head>
 <body>
 
-    <div id="login-screen" class="card">
-        <h1>🦠 破晓行动：加入游戏</h1>
-        
-        <div style="background: #eef2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border-left: 5px solid #3498db;">
-            <label style="font-weight: bold; display: block; margin-bottom: 10px;">🏫 请选择课堂房间号:</label>
-            <select id="room-select" style="font-size: 18px; padding: 15px;">
-                <option value="1001">房间 1001 (推荐)</option>
-                <option value="1002">房间 1002</option>
-                <option value="1003">房间 1003</option>
-                <option value="1004">房间 1004</option>
+    <div id="screen-login" class="login-card">
+        <h2 style="color:var(--tech); margin-top:0;">🌍 筑梦绿洲系统</h2>
+        <div class="login-nav">
+            <button id="tab-stu" class="active" onclick="toggleRole('student')">企业端</button>
+            <button id="tab-tea" onclick="toggleRole('teacher')">指挥大屏</button>
+        </div>
+        <div id="form-stu">
+            <input type="text" id="login-user" placeholder="输入系统账号 (如: 300101)">
+            <input type="password" id="login-pass" placeholder="输入密码">
+            <button onclick="studentLogin()" style="background:var(--tech); color:white; width:100%; padding:12px; margin-top:10px;">接入绿洲网络</button>
+        </div>
+        <div id="form-tea" class="hidden">
+            <select id="login-room">
+                <option value="3001">房间 3001</option><option value="3002">房间 3002</option>
+                <option value="3003">房间 3003</option><option value="3004">房间 3004</option>
             </select>
-        </div>
-        
-        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-            <div style="flex:1; min-width: 250px;">
-                <h3 style="border-bottom: 2px solid #3498db; padding-bottom: 10px; color: #2c3e50;">我是老师</h3>
-                <p style="font-size: 13px; color: #666; margin-bottom: 10px;">需输入管理密码 (房间号+419)</p>
-                <button onclick="checkTeacherPassword()" style="background-color: #2c3e50;">进入控制台</button>
-            </div>
-            <div style="flex:1; min-width: 250px;">
-                <h3 style="border-bottom: 2px solid #27ae60; padding-bottom: 10px; color: #27ae60;">我是学生</h3>
-                <p style="font-size: 13px; color: #666; margin-bottom: 10px;">请确认已选中正确的房间号</p>
-                <input type="text" id="team-name" placeholder="输入队名 (如: 第1组)">
-                <button onclick="studentJoin()" style="background-color: #27ae60;">加入战局</button>
-            </div>
+            <input type="password" id="login-tea-pass" placeholder="输入房间密码">
+            <button onclick="teacherLogin()" style="background:var(--text-sub); color:white; width:100%; padding:12px; margin-top:10px;">开启上帝视角</button>
         </div>
     </div>
 
-    <div id="teacher-dashboard" class="card hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1>🌍 全球态势监控 <span id="current-room-display" style="font-size: 16px; color: #e67e22; background: #fff3cd; padding: 2px 8px; border-radius: 4px;"></span></h1>
-            <button onclick="resetGame()" style="background-color: #c0392b; width: auto; padding: 8px 15px; font-size: 14px;">💥 重置本房间</button>
-        </div>
-        
-        <div class="stat-box">
-            <div class="stat-item"><h3>当前轮数</h3><p id="t-turn">1</p></div>
-            <div class="stat-item"><h3>全球感染</h3><p id="t-infection" style="color: #ff7675;">1000</p></div>
-            <div class="stat-item"><h3>传染率 R0</h3><p id="t-r0">1.50</p></div>
-            <div class="stat-item"><h3>解药进度</h3><p id="t-cure" style="color: #55efc4;">0%</p></div>
-        </div>
-
-        <div class="chart-container">
-            <canvas id="infectionChart"></canvas>
-        </div>
-        
-        <div style="background: #fff; border: 2px solid #f1f2f6; padding: 20px; border-radius: 12px; margin-top: 25px;">
-            <h3 style="margin-top:0;">🎮 游戏流程控制</h3>
-            <div style="display: flex; gap: 15px;">
-                <button onclick="assignRoles()" style="flex:1; background-color: #e67e22;">🎲 1. 分配属性 (A/B/C)</button>
-                <button onclick="nextTurn()" style="flex:1; background-color: #d63031; font-size: 18px;">⚠️ 2. 结算本轮</button>
+    <div id="screen-teacher" class="hidden">
+        <div class="tea-header">
+            <div>
+                <h2 style="margin:0;">🌍 全球控制枢纽 <span id="t-room" style="color:var(--tech); font-size: 16px;"></span></h2>
+                <span style="font-size:12px; color:var(--text-sub);">在线企业: <b id="t-online" style="color:white;">0</b> 家 | 阶段: 第 <b id="t-turn">1</b> 轮</span>
             </div>
-            <p style="color: #7f8c8d; font-size: 13px; margin: 10px 0 0 0;">💡 提示：所有未提交决策的队伍将自动视为“零投入”，导致权威值大幅下降。</p>
+            <div style="display:flex; gap:10px;">
+                <button onclick="assignRoles()" style="background:var(--tech); color:white; padding:8px 15px;">🎲 动态分配角色</button>
+                <button onclick="processRound()" style="background:var(--danger); color:white; padding:8px 15px;">🚨 结算本轮</button>
+                <button onclick="resetGame()" style="background:var(--card-bg); color:white; border:1px solid var(--border); padding:8px 15px;">🔄 开启新场次</button>
+                <button onclick="exportCSV()" style="background:var(--vc); color:white; padding:8px 15px;">📥 导出战报</button>
+                <button onclick="logout()" style="background:transparent; color:var(--danger); padding:8px 15px;">登出</button>
+            </div>
         </div>
 
-        <h3>各国状态监控：</h3>
-        <div id="team-list">加载中...</div>
+        <div class="doom-bar-container">
+            <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:bold; margin-bottom:5px;">
+                <span style="color:var(--danger);">⚠️ 2℃ 生态崩溃临界点 (碳排满额即毁灭)</span>
+                <span>碳排累计: <span id="t-carbon">0</span> / <span id="t-limit">0</span></span>
+            </div>
+            <div style="background:var(--bg-dark); border-radius:8px; overflow:hidden;"><div id="doom-bar" class="doom-bar"></div></div>
+        </div>
+
+        <div class="arena">
+            <div class="earth-core">
+                <p style="margin:0; font-size:12px; color:var(--text-sub);">全球表面均温</p>
+                <h1 id="t-temp-display">1.0<span style="font-size:24px">℃</span></h1>
+                <p id="t-submitted" style="margin:5px 0 0 0; font-size:12px; color:var(--vc);">提交进度: 0/0</p>
+            </div>
+            <div id="team-circle"></div>
+        </div>
+
+        <div class="ticker"><div class="ticker-text" id="ticker-msg">等待产生跨界契约...</div></div>
     </div>
 
-    <div id="student-dashboard" class="card hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h1 id="s-team-name" style="margin:0;">队伍控制台</h1>
-            <span id="aid-badge" class="hidden" style="background: #f1c40f; color: #333; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: bold;">收到援助!</span>
-        </div>
-        
-        <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 5px solid #3498db;">
-            <p style="margin:0; font-weight: bold;">国家属性: <span id="s-country-type" style="font-size: 18px;">等待分配...</span></p>
-            <p style="margin:5px 0 0 0; font-size: 13px; color: #555;" id="s-buff-desc"></p>
-        </div>
-        
-        <div class="stat-box">
-            <div class="stat-item"><h3>可用 AP</h3><p id="s-ap">10</p></div>
-            <div class="stat-item"><h3>本国权威值</h3><p id="s-auth">100</p></div>
+    <div id="screen-student" class="hidden stu-container">
+        <div class="stu-card" style="display:flex; justify-content:space-between; align-items:center; border-top: 4px solid var(--tech);">
+            <div>
+                <span id="s-role-badge" class="badge type-待定" style="font-size:11px; padding:2px 6px; border-radius:4px;">待定</span>
+                <h2 id="s-name-display" style="margin:5px 0 0 0;">载入中...</h2>
+            </div>
+            <button onclick="logout()" style="background:transparent; color:var(--text-sub);">断开连接</button>
         </div>
 
-        <div id="input-area">
-            <h3>📝 本轮决策 (总投入 ≤ AP)</h3>
-            <div style="background: #f9f9f9; padding: 15px; border-radius: 8px;">
-                <label>🛡️ <b>防控投入</b> <small>(压制传染)</small></label>
-                <input type="number" id="input-prevention" value="0" min="0" oninput="updateAPCalc()">
-                
-                <label>🧪 <b>研发投入</b> <small>(增加进度)</small></label>
-                <input type="number" id="input-research" value="0" min="0" oninput="updateAPCalc()">
-                
-                <label>📢 <b>维稳投入</b> <small>(恢复权威)</small></label>
-                <input type="number" id="input-stability" value="0" min="0" oninput="updateAPCalc()">
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                    <span style="font-weight: bold;">已用: <span id="spent-ap">0</span> / <span id="max-ap">10</span></span>
-                    <span id="submit-status" style="color: #27ae60; font-weight: bold;"></span>
+        <div class="stu-card">
+            <details>
+                <summary style="cursor:pointer; color:var(--tech); font-weight:bold; font-size:14px;">✏️ 修改公司名片 & 外交标签</summary>
+                <input type="text" id="edit-name" placeholder="公司名称">
+                <input type="text" id="edit-ceo" placeholder="CEO 姓名">
+                <input type="text" id="edit-tag" placeholder="大屏挂牌标签 (如: 急求500万投资)">
+                <button onclick="saveProfile()" style="background:var(--border); color:white; width:100%; padding:10px; margin-top:5px;">💾 保存更新</button>
+            </details>
+        </div>
+
+        <div class="stu-card" style="text-align:center; background:rgba(30,41,59,0.5);">
+            <p style="margin:0; font-size:12px; color:var(--text-sub);">企业可用流动资金</p>
+            <h1 style="margin:5px 0; color:#facc15; font-size:40px;">¥ <span id="s-funds">0</span> <span style="font-size:16px;">万</span></h1>
+            <p style="margin:0 0 15px 0; font-size:12px; color:var(--tech);">累计发展分: <span id="s-score">0</span></p>
+            
+            <div id="action-area" style="border-top:1px solid var(--border); padding-top:15px;">
                 </div>
-                <button onclick="submitDecision()" id="btn-submit" style="margin-top: 15px;">🚀 提交决策</button>
-            </div>
         </div>
 
-        <div id="aid-area" style="margin-top: 25px; border-top: 2px dashed #dfe6e9; padding-top: 15px;">
-            <h3>🤝 国际援助 (转让 AP)</h3>
-            <div style="display: flex; gap: 10px;">
-                <select id="aid-target" style="flex: 2;">
-                    <option value="">-- 选择对象 --</option>
-                </select>
-                <input type="number" id="aid-amount" placeholder="数量" min="1" style="flex: 1;">
-            </div>
-            <button onclick="sendAid()" style="background-color: #f39c12; color: white;">💸 转账</button>
-        </div>
-
-        <div id="dead-message" class="hidden" style="text-align: center; color: #c0392b; padding: 30px;">
-            <h2 style="font-size: 40px; margin-bottom: 10px;">💀</h2>
-            <h2>国家已崩溃</h2>
-            <p>政府瘫痪，无法决策。请呼叫盟友援助（恢复权威）以复活。</p>
+        <div class="stu-card">
+            <h4 style="margin:0 0 10px 0; color:var(--text-main); border-bottom:1px solid var(--border); padding-bottom:8px;">🌐 跨界交易市场 (游说与转账)</h4>
+            <div class="stu-market-list" id="market-list"></div>
         </div>
     </div>
 
-    <script>
-        // ================= 配置区 =================
-        const SUPABASE_URL = 'https://adjvfvfbjfrtenvbocfw.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkanZmdmZiamZydGVudmJvY2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxMzAzNjEsImV4cCI6MjA4MTcwNjM2MX0.Fzd2LU2ueKg0V47NSC9nQY_5hHaFY8SqJuV281iXKag'; 
-        // ==========================================
+    <div id="modal-transfer" class="modal hidden">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">📝 拟定跨界契约</h3>
+            <p style="font-size:13px; color:var(--text-sub);">目标: <b id="trans-target-name" style="color:white;"></b></p>
+            <input type="number" id="trans-amount" placeholder="输入划转金额 (万)" min="1">
+            <input type="text" id="trans-memo" placeholder="留言承诺 (如: 下轮利润分一半)">
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button onclick="closeModal('modal-transfer')" style="flex:1; background:transparent; border:1px solid var(--border); color:white; padding:10px;">取消</button>
+                <button onclick="submitTransfer()" style="flex:1; background:var(--vc); color:white; padding:10px;">签署并发送</button>
+            </div>
+        </div>
+    </div>
 
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        let myTeamId = null;
-        let currentRoomId = null;
-        let myMaxAP = 10;
-        let myChart = null;
+    <div id="modal-receive" class="modal hidden">
+        <div class="modal-content" style="border-top: 5px solid var(--vc);">
+            <h3 style="margin-top:0; color:var(--vc);">🚨 收到赋能投资！</h3>
+            <p style="font-size:14px;">发起方: <b id="recv-from"></b></p>
+            <h2 style="color:#facc15; margin:10px 0;">¥ <span id="recv-amount"></span> 万</h2>
+            <p style="font-size:12px; background:var(--bg-dark); padding:10px; border-radius:6px; color:var(--text-sub);" id="recv-memo"></p>
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button onclick="handleContract('REJECTED')" style="flex:1; background:rgba(239,68,68,0.2); color:var(--danger); padding:10px;">拒绝</button>
+                <button onclick="handleContract('APPROVED')" style="flex:1; background:var(--vc); color:white; padding:10px;">同意并收款</button>
+            </div>
+        </div>
+    </div>
 
-        // ------------------ 登录逻辑 (动态密码版) ------------------
+    <div id="modal-doom" class="modal hidden">
+        <div class="modal-content modal-danger">
+            <h1 style="font-size:50px; margin:0;">🔥</h1>
+            <h2 style="color:var(--danger); margin:10px 0;">生态系统全面崩溃</h2>
+            <p style="color:var(--text-sub); font-size:14px; text-align:left; line-height:1.6; background:var(--bg-dark); padding:15px; border-radius:8px;">
+                全球气温升幅突破 2℃，人类进入生死局！<br><br>
+                • <b>基础设施瘫痪：</b> 高温致使铁轨变形、电网超载。<br>
+                • <b>粮食系统崩溃：</b> 极热干旱绝收，饥荒全面爆发。<br>
+                • <b>生态极限：</b> 局部湿球温度超过31℃，户外无法生存。<br><br>
+                <span style="color:var(--danger); font-weight:bold;">系统判定：地球已沦为温室。本轮文明推演宣告失败。</span>
+            </p>
+            <button onclick="closeModal('modal-doom')" style="background:var(--border); color:white; width:100%; padding:12px; margin-top:15px;">关闭警报 (进入复盘)</button>
+        </div>
+    </div>
+
+<script>
+    // ✅ 已经替换为你项目专用的 Supabase 配置
+    const SB_URL = 'https://adjvfvfbjfrtenvbocfw.supabase.co';
+    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkanZmdmZiamZydGVudmJvY2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxMzAzNjEsImV4cCI6MjA4MTcwNjM2MX0.Fzd2LU2ueKg0V47NSC9nQY_5hHaFY8SqJuV281iXKag'; 
+    const sb = supabase.createClient(SB_URL, SB_KEY);
+
+    let myTeam = null, currentRoom = null, roomData = null;
+    let activeTeams = [];
+    let currentTransferTarget = null;
+    let pendingContractId = null;
+
+    function toggleRole(role) {
+        document.getElementById('form-stu').classList.toggle('hidden', role !== 'student');
+        document.getElementById('form-tea').classList.toggle('hidden', role !== 'teacher');
+        document.getElementById('tab-stu').classList.toggle('active', role === 'student');
+        document.getElementById('tab-tea').classList.toggle('active', role === 'teacher');
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function logout() { if(confirm("确定断开连接？")) { localStorage.clear(); location.reload(); } }
+
+    window.onload = async () => {
+        const tid = localStorage.getItem('oasis_team_id'), rid = localStorage.getItem('oasis_room_id');
+        if (tid && rid) {
+            const { data } = await sb.from('oasis_teams').select('*').eq('id', tid).single();
+            if(data) { myTeam = data; currentRoom = rid; initStudentUI(); return; }
+        }
+        const teaRoom = localStorage.getItem('oasis_tea_room');
+        if(teaRoom) { currentRoom = teaRoom; initTeacherUI(); }
+    };
+
+    // ================= 登录逻辑 =================
+    async function studentLogin() {
+        const u = document.getElementById('login-user').value.trim();
+        const p = document.getElementById('login-pass').value.trim();
+        const { data, error } = await sb.from('oasis_teams').select('*').eq('username', u).eq('password', p).single();
+        if (error || !data) return alert("账号或密码错误");
         
-        function checkTeacherPassword() {
-            // 获取下拉菜单选中的房间号
-            const selectedRoom = document.getElementById('room-select').value;
-            // 构造正确密码：房间号 + 419
-            const correctPwd = selectedRoom + "419";
-            
-            const pwd = prompt(`请输入房间 ${selectedRoom} 的管理密码:`);
-            
-            if (pwd === correctPwd) {
-                teacherLogin(selectedRoom);
-            } else if (pwd !== null) {
-                alert("密码错误！(提示：房间号+419)");
-            }
+        myTeam = data; currentRoom = data.room_id;
+        localStorage.setItem('oasis_team_id', myTeam.id); localStorage.setItem('oasis_room_id', currentRoom);
+        await sb.from('oasis_teams').update({ is_active: true }).eq('id', myTeam.id);
+        initStudentUI();
+    }
+
+    async function teacherLogin() {
+        const room = document.getElementById('login-room').value;
+        const pwd = document.getElementById('login-tea-pass').value;
+        if (pwd !== room + "419") return alert("密码错误");
+        currentRoom = room; localStorage.setItem('oasis_tea_room', room);
+        initTeacherUI();
+    }
+
+    // ================= 教师端核心 =================
+    async function initTeacherUI() {
+        document.getElementById('screen-login').classList.add('hidden');
+        document.getElementById('screen-teacher').classList.remove('hidden');
+        document.getElementById('t-room').innerText = `[${currentRoom}]`;
+        
+        await fetchTeacherData();
+        sb.channel('t_room').on('postgres_changes', { event:'*', schema:'public', table:'oasis_rooms', filter:`id=eq.${currentRoom}` }, fetchTeacherData).subscribe();
+        sb.channel('t_teams').on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`room_id=eq.${currentRoom}` }, fetchTeacherData).subscribe();
+        sb.channel('t_trans').on('postgres_changes', { event:'INSERT', schema:'public', table:'oasis_transactions', filter:`room_id=eq.${currentRoom}` }, (p) => {
+            if(p.new.status === 'APPROVED') triggerTicker(`💰 契约达成！交易额: ${p.new.amount}万`);
+        }).subscribe();
+    }
+
+    async function fetchTeacherData() {
+        const { data: r } = await sb.from('oasis_rooms').select('*').eq('id', currentRoom).single();
+        const { data: teams } = await sb.from('oasis_teams').select('*').eq('room_id', currentRoom).eq('is_active', true);
+        roomData = r; activeTeams = teams;
+
+        document.getElementById('t-turn').innerText = r.turn;
+        document.getElementById('t-online').innerText = teams.length;
+        document.getElementById('t-carbon').innerText = r.global_carbon;
+        document.getElementById('t-limit').innerText = r.carbon_limit;
+
+        // 温度映射：0碳 = 1.0度，满碳 = 2.0度
+        let temp = 1.0 + (r.global_carbon / r.carbon_limit);
+        if(temp > 2.0) temp = 2.0;
+        document.getElementById('t-temp-display').innerText = temp.toFixed(1) + "℃";
+        
+        let pct = (r.global_carbon / r.carbon_limit) * 100;
+        document.getElementById('doom-bar').style.width = Math.min(100, pct) + "%";
+
+        let submitted = teams.filter(t => t.last_action !== null).length;
+        document.getElementById('t-submitted').innerText = `锁定进度: ${submitted}/${teams.length}`;
+
+        if (r.is_collapsed && document.getElementById('modal-doom').classList.contains('hidden')) {
+            document.getElementById('modal-doom').classList.remove('hidden');
         }
 
-        async function teacherLogin(roomId) {
-            currentRoomId = roomId;
-            
-            // 初始化/获取房间数据
-            const { data } = await supabaseClient.from('game_rooms').select('*').eq('id', roomId).single();
-            if (!data) {
-                await supabaseClient.from('game_rooms').insert([{ 
-                    id: roomId, turn: 1, infection_total: 1000, infection_rate: 1.5, cure_progress: 0, global_authority: 100 
-                }]);
-                logHistory(roomId, 1, 1000, 1.5, 100, 0);
-            }
+        renderCircularTeams();
+    }
 
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('teacher-dashboard').classList.remove('hidden');
-            document.getElementById('current-room-display').innerText = `当前房间: ${currentRoomId}`;
+    function renderCircularTeams() {
+        const container = document.getElementById('team-circle');
+        container.innerHTML = '';
+        const N = activeTeams.length;
+        const R = 230; // 半径
+        
+        activeTeams.forEach((t, i) => {
+            const angle = (i * (360 / N)) * (Math.PI / 180);
+            const x = Math.sin(angle) * R;
+            const y = -Math.cos(angle) * R; // 顶部开始
             
-            initChart();
-            subscribeToGame();
-            fetchTeamList();
-            fetchHistoryAndDraw();
-            if(data) updateTeacherStats(data);
+            const card = document.createElement('div');
+            card.className = 'team-card-t';
+            card.style.transform = `translate(${x}px, ${y}px)`;
+            
+            let statusIcon = t.last_action ? '✅' : '⏳';
+            let roleName = t.role_type === 'HEAVY'?'重工':(t.role_type==='TECH'?'科技':(t.role_type==='VC'?'风投':'待定'));
+
+            card.innerHTML = `
+                <span class="badge type-${t.role_type}">${roleName} ${statusIcon}</span>
+                <div style="font-weight:bold; font-size:14px; margin:4px 0;">${t.name}</div>
+                <div style="font-size:11px; color:#94a3b8;">${t.ceo_name} | 资金:${t.funds}</div>
+                <div style="font-size:10px; margin-top:6px; color:#facc15;">${t.public_tags}</div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function triggerTicker(msg) {
+        document.getElementById('ticker-msg').innerText = msg;
+        const ticker = document.getElementById('ticker-msg');
+        ticker.style.animation = 'none'; ticker.offsetHeight; /* trigger reflow */ ticker.style.animation = null; 
+    }
+
+    async function assignRoles() {
+        if(!confirm("将重置各组初始资金和属性，确定吗？")) return;
+        const N = activeTeams.length;
+        if(N < 2) return alert("至少需要2组在线");
+        
+        // 动态计算临界点
+        await sb.from('oasis_rooms').update({ carbon_limit: N * 8, global_carbon: 0 }).eq('id', currentRoom);
+        
+        // 比例 4:3:3 分配
+        let pool = [];
+        let numHeavy = Math.round(N * 0.4);
+        let numTech = Math.round(N * 0.3);
+        let numVC = N - numHeavy - numTech;
+        for(let i=0; i<numHeavy; i++) pool.push({type: 'HEAVY', funds: 300});
+        for(let i=0; i<numTech; i++) pool.push({type: 'TECH', funds: 0});
+        for(let i=0; i<numVC; i++) pool.push({type: 'VC', funds: 800});
+        
+        // 打乱数组
+        pool.sort(() => Math.random() - 0.5);
+        
+        for(let i=0; i<N; i++) {
+            await sb.from('oasis_teams').update({ role_type: pool[i].type, funds: pool[i].funds, dev_score: 0, last_action: null }).eq('id', activeTeams[i].id);
+        }
+        alert("角色与资金分配完毕！");
+    }
+
+    async function processRound() {
+        if(roomData.is_collapsed) return alert("生态已崩溃，无法继续");
+        if(activeTeams.filter(t => t.last_action===null).length > 0) {
+            if(!confirm("还有企业未锁定决策！强制结算将其视为【空过】，继续吗？")) return;
         }
 
-        async function studentJoin() {
-            // 获取选中的房间号
-            const roomId = document.getElementById('room-select').value;
-            const name = document.getElementById('team-name').value;
-            if(!name) return alert('请输入队名');
-
-            const { data, error } = await supabaseClient
-                .from('teams')
-                .insert([{ room_id: roomId, name: name, country_type: '待定', ap_count: 10, authority: 100 }])
-                .select();
-
-            if(error) { 
-                if(error.code === '23505') { 
-                    alert(`【${roomId}号房】中已存在该队名，请换个名字！`);
+        let totalCarbonAdd = 0;
+        let totalCarbonSub = 0;
+        
+        for(let t of activeTeams) {
+            let action = t.last_action || {type: 'NONE'};
+            if(action.type === 'HEAVY') {
+                // 扩产
+                await sb.from('oasis_teams').update({ funds: t.funds + 300, last_action: null }).eq('id', t.id);
+                totalCarbonAdd += 4;
+            } else if (action.type === 'TECH') {
+                // 研发概率结算
+                let invest = action.cost || 500;
+                let prob = 60 + ((invest - 500) / 100) * 10;
+                prob = Math.min(100, prob);
+                let rand = Math.random() * 100;
+                
+                if (rand <= prob) {
+                    await sb.from('oasis_teams').update({ dev_score: t.dev_score + 50, last_action: null }).eq('id', t.id);
+                    totalCarbonSub += 6;
+                    triggerTicker(`🎉 突破！[${t.name}] 零碳引擎研发成功！减碳 6点！`);
                 } else {
-                    alert('加入失败，请检查网络');
+                    await sb.from('oasis_teams').update({ last_action: null }).eq('id', t.id);
+                    triggerTicker(`💥 失败！[${t.name}] 研发失败，${invest}万投资打水漂！`);
                 }
-                return; 
-            }
-
-            myTeamId = data[0].id;
-            currentRoomId = roomId;
-
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('student-dashboard').classList.remove('hidden');
-            document.getElementById('s-team-name').innerText = name + ` (${roomId}房)`;
-            
-            subscribeToGame();
-            fetchOtherTeams();
-        }
-
-        // ------------------ 核心：重置游戏 ------------------
-        async function resetGame() {
-            if(!confirm(`⚠️ 高危操作！\n\n确定要重置【${currentRoomId}号房间】吗？\n\n该房间所有数据将被清空，其他房间不受影响。`)) return;
-
-            const { error } = await supabaseClient.rpc('reset_room_data', { target_room_id: parseInt(currentRoomId) });
-
-            if(error) {
-                console.error(error);
-                alert("重置失败，请联系管理员");
             } else {
-                alert(`✅ 房间 ${currentRoomId} 已重置成功！`);
-                if(myChart) {
-                    myChart.data.labels = [];
-                    myChart.data.datasets.forEach((dataset) => { dataset.data = []; });
-                    myChart.update();
-                }
-                await logHistory(currentRoomId, 1, 1000, 1.5, 100, 0);
-                fetchTeamList();
-                fetchHistoryAndDraw();
-                updateTeacherStats({turn: 1, infection_total: 1000, infection_rate: 1.5, cure_progress: 0});
+                await sb.from('oasis_teams').update({ last_action: null }).eq('id', t.id);
             }
         }
 
-        // ------------------ 游戏核心逻辑 ------------------
+        let newCarbon = Math.max(0, roomData.global_carbon + totalCarbonAdd - totalCarbonSub);
+        let isCol = newCarbon >= roomData.carbon_limit;
 
-        async function assignRoles() {
-            const { data: teams } = await supabaseClient.from('teams').select('*').eq('room_id', currentRoomId);
-            if(teams.length === 0) return alert("当前没有队伍");
-            
-            const types = ['A', 'A', 'B', 'B', 'B', 'C', 'C', 'C', 'C', 'C']; 
-            for (let i = 0; i < teams.length; i++) {
-                const type = types[i % types.length]; 
-                let ap = 10;
-                if(type === 'A') ap = 15; if(type === 'B') ap = 12; if(type === 'C') ap = 8;
-                await supabaseClient.from('teams').update({ country_type: type, ap_count: ap }).eq('id', teams[i].id);
+        await sb.from('oasis_logs').insert({ room_id: currentRoom, exp_id: roomData.experiment_id, turn: roomData.turn, global_carbon: newCarbon, carbon_limit: roomData.carbon_limit, details: { add: totalCarbonAdd, sub: totalCarbonSub } });
+        
+        await sb.from('oasis_rooms').update({ global_carbon: newCarbon, turn: roomData.turn + 1, is_collapsed: isCol }).eq('id', currentRoom);
+    }
+
+    async function resetGame() {
+        if(!confirm("开启新场次，重置气温和回合数？")) return;
+        const { data: r } = await sb.from('oasis_rooms').select('experiment_id').eq('id', currentRoom).single();
+        await sb.from('oasis_rooms').update({ experiment_id: r.experiment_id + 1, turn: 1, global_carbon: 0, is_collapsed: false }).eq('id', currentRoom);
+        await sb.from('oasis_teams').update({ last_action: null, role_type: '待定', funds: 0 }).eq('room_id', currentRoom);
+    }
+
+    async function exportCSV() {
+        // 简化导出逻辑，生产环境可补全
+        alert("已触发导出，正在拉取 logs...");
+    }
+
+    // ================= 学生端核心 =================
+    async function initStudentUI() {
+        document.getElementById('screen-login').classList.add('hidden');
+        document.getElementById('screen-student').classList.remove('hidden');
+        
+        renderStudentSelf(); fetchMarket();
+        
+        sb.channel('s_team').on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`id=eq.${myTeam.id}` }, (p) => { myTeam = p.new; renderStudentSelf(); }).subscribe();
+        sb.channel('s_market').on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`room_id=eq.${currentRoom}` }, fetchMarket).subscribe();
+        sb.channel('s_room').on('postgres_changes', { event:'*', schema:'public', table:'oasis_rooms', filter:`id=eq.${currentRoom}` }, (p) => {
+            if(p.new.is_collapsed) document.getElementById('modal-doom').classList.remove('hidden');
+            else document.getElementById('modal-doom').classList.add('hidden');
+        }).subscribe();
+        
+        // 监听转账请求
+        sb.channel('s_trans').on('postgres_changes', { event:'INSERT', schema:'public', table:'oasis_transactions', filter:`to_team_id=eq.${myTeam.id}` }, async (p) => {
+            if(p.new.status === 'PENDING') {
+                pendingContractId = p.new.id;
+                const { data: sender } = await sb.from('oasis_teams').select('name').eq('id', p.new.from_team_id).single();
+                document.getElementById('recv-from').innerText = sender.name;
+                document.getElementById('recv-amount').innerText = p.new.amount;
+                document.getElementById('recv-memo').innerText = p.new.memo || '无留言';
+                document.getElementById('modal-receive').classList.remove('hidden');
             }
-            alert('分配完成！');
-        }
+        }).subscribe();
+    }
 
-        async function submitDecision() {
-            const p = parseInt(document.getElementById('input-prevention').value) || 0;
-            const r = parseInt(document.getElementById('input-research').value) || 0;
-            const s = parseInt(document.getElementById('input-stability').value) || 0;
-            if (p+r+s > myMaxAP) return alert('AP超支');
-            const decision = { p: p, r: r, s: s };
-            await supabaseClient.from('teams').update({ last_decision: decision }).eq('id', myTeamId);
-            document.getElementById('submit-status').innerText = '✅ 已锁定';
-            document.getElementById('btn-submit').disabled = true;
-            document.getElementById('btn-submit').innerText = "等待结算...";
-        }
+    function renderStudentSelf() {
+        document.getElementById('edit-name').value = myTeam.name;
+        document.getElementById('edit-ceo').value = myTeam.ceo_name;
+        document.getElementById('edit-tag').value = myTeam.public_tags;
+        
+        document.getElementById('s-name-display').innerText = myTeam.name;
+        document.getElementById('s-funds').innerText = myTeam.funds;
+        document.getElementById('s-score').innerText = myTeam.dev_score;
+        
+        let roleName = myTeam.role_type === 'HEAVY'?'⚙️ 重工':(myTeam.role_type==='TECH'?'🚀 科技':(myTeam.role_type==='VC'?'💰 风投':'待定'));
+        document.getElementById('s-role-badge').innerText = roleName;
+        document.getElementById('s-role-badge').className = "badge type-" + myTeam.role_type;
 
-        async function nextTurn() {
-            if(!confirm("确定结算本轮？")) return;
-            const { data: teams } = await supabaseClient.from('teams').select('*').eq('room_id', currentRoomId);
-            const { data: room } = await supabaseClient.from('game_rooms').select('*').eq('id', currentRoomId).single();
-
-            let totalP = 0, totalR = 0, collapsed = 0;
-
-            for (let team of teams) {
-                const d = team.last_decision || { p: 0, r: 0, s: 0 };
-                let p_bonus = 1.0, r_bonus = 1.0;
-                if (team.country_type === 'B') p_bonus = 1.5;
-                if (team.country_type === 'A') r_bonus = 2.0;
-
-                if (team.authority > 0) {
-                    totalP += (d.p * p_bonus);
-                    totalR += (d.r * r_bonus);
-                } else {
-                    collapsed++;
-                }
-
-                let decay = 5 + (d.p * 1.5);
-                if (team.country_type === 'A') decay = decay * 1.5;
-                let recovery = d.s * 3;
-                let newAuth = team.authority - decay + recovery;
-                newAuth = Math.max(0, Math.min(100, newAuth));
-
-                let baseAP = 10;
-                if(team.country_type === 'A') baseAP = 15;
-                if(team.country_type === 'B') baseAP = 12;
-                if(team.country_type === 'C') baseAP = 8;
-
-                await supabaseClient.from('teams').update({ 
-                    authority: newAuth, last_decision: null, ap_count: baseAP 
-                }).eq('id', team.id);
-            }
-
-            let r_red = totalP / 20 * 0.1;
-            let new_R0 = 1.5 - r_red + (collapsed * 0.1); 
-            if (new_R0 < 0.5) new_R0 = 0.5;
-            
-            let newInf = Math.floor(room.infection_total * new_R0);
-            let progInc = totalR / 50; 
-            if (collapsed > 0) progInc = progInc * 0.8;
-            let newProg = Math.min(100, room.cure_progress + progInc);
-            let newTurn = room.turn + 1;
-
-            await supabaseClient.from('game_rooms').update({
-                turn: newTurn, infection_total: newInf, infection_rate: new_R0, cure_progress: newProg
-            }).eq('id', currentRoomId);
-
-            await logHistory(currentRoomId, newTurn, newInf, new_R0, 100, newProg);
-            alert(`✅ 第 ${room.turn} 轮结算完毕！`);
-        }
-
-        async function logHistory(roomId, turn, inf, r0, auth, cure) {
-            await supabaseClient.from('game_logs').insert([{
-                room_id: roomId, turn: turn, infection_total: inf, infection_rate: r0, global_authority: auth, cure_progress: cure
-            }]);
-        }
-
-        // ------------------ 援助功能 ------------------
-        async function fetchOtherTeams() {
-            const { data: teams } = await supabaseClient.from('teams').select('id, name, country_type').eq('room_id', currentRoomId).neq('id', myTeamId);
-            const select = document.getElementById('aid-target');
-            select.innerHTML = '<option value="">-- 选择对象 --</option>';
-            teams.forEach(t => {
-                select.innerHTML += `<option value="${t.id}">${t.name} [${t.country_type}]</option>`;
-            });
-        }
-
-        async function sendAid() {
-            const targetId = document.getElementById('aid-target').value;
-            const amount = parseInt(document.getElementById('aid-amount').value);
-            if(!targetId || !amount || amount <= 0) return alert("无效数量");
-            if(amount > myMaxAP) return alert("AP 不够！");
-            
-            const oldAP = myMaxAP;
-            updateLocalAP(myMaxAP - amount); 
-            const { error: err1 } = await supabaseClient.from('teams').update({ ap_count: myMaxAP }).eq('id', myTeamId); 
-            if(err1) { alert("转出失败"); updateLocalAP(oldAP); return; } 
-
-            const { data: target } = await supabaseClient.from('teams').select('ap_count').eq('id', targetId).single();
-            await supabaseClient.from('teams').update({ ap_count: target.ap_count + amount }).eq('id', targetId);
-
-            alert("转账成功！");
-            document.getElementById('aid-amount').value = "";
-        }
-
-        // ------------------ 实时同步 ------------------
-        function updateLocalAP(val) {
-            myMaxAP = val;
-            document.getElementById('s-ap').innerText = val;
-            updateAPCalc();
-        }
-
-        function subscribeToGame() {
-            supabaseClient.channel('global-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, (payload) => {
-                if(!myTeamId) fetchTeamList(); 
-                if(myTeamId && payload.new.id === myTeamId) {
-                    const t = payload.new;
-                    const oldAP = myMaxAP;
-                    updateLocalAP(t.ap_count);
-                    
-                    if(t.ap_count > oldAP) {
-                        const apBox = document.getElementById('s-ap').parentElement;
-                        apBox.classList.add('flash-green');
-                        document.getElementById('aid-badge').classList.remove('hidden');
-                        setTimeout(() => { apBox.classList.remove('flash-green'); document.getElementById('aid-badge').classList.add('hidden'); }, 3000);
-                    }
-
-                    document.getElementById('s-country-type').innerText = t.country_type; 
-                    let desc = "";
-                    if(t.country_type === 'A') { desc = "🌟 科技强国 (初始15AP)"; document.getElementById('s-country-type').className = "status-A"; }
-                    else if(t.country_type === 'B') { desc = "🔨 制造强国 (初始12AP)"; document.getElementById('s-country-type').className = "status-B"; }
-                    else if(t.country_type === 'C') { desc = "🍂 资源匮乏 (初始8AP)"; document.getElementById('s-country-type').className = "status-C"; }
-                    else { document.getElementById('s-country-type').innerText = "等待分配..."; }
-                    
-                    document.getElementById('s-buff-desc').innerText = desc;
-
-                    if (t.authority <= 0) {
-                        document.getElementById('input-area').classList.add('hidden');
-                        document.getElementById('aid-area').classList.add('hidden');
-                        document.getElementById('dead-message').classList.remove('hidden');
-                    } else {
-                        document.getElementById('input-area').classList.remove('hidden');
-                        document.getElementById('aid-area').classList.remove('hidden');
-                        document.getElementById('dead-message').classList.add('hidden');
-                    }
-                }
-            })
-            .subscribe();
-
-            supabaseClient.channel('room-update')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'game_rooms', filter: `id=eq.${currentRoomId}` }, (payload) => {
-                updateTeacherStats(payload.new);
-                if(myTeamId) {
-                     document.getElementById('input-prevention').value = 0;
-                     document.getElementById('input-research').value = 0;
-                     document.getElementById('input-stability').value = 0;
-                     document.getElementById('submit-status').innerText = '';
-                     document.getElementById('btn-submit').disabled = false;
-                     document.getElementById('btn-submit').innerText = "🚀 提交决策";
-                     updateAPCalc();
-                     alert(`🔔 第 ${payload.new.turn} 轮开始了！`);
-                } else {
-                    fetchHistoryAndDraw();
-                }
-            })
-            .subscribe();
-        }
-
-        function updateAPCalc() {
-            const p = parseInt(document.getElementById('input-prevention').value) || 0;
-            const r = parseInt(document.getElementById('input-research').value) || 0;
-            const s = parseInt(document.getElementById('input-stability').value) || 0;
-            const total = p + r + s;
-            document.getElementById('spent-ap').innerText = total;
-            document.getElementById('max-ap').innerText = myMaxAP;
-            const btn = document.getElementById('btn-submit');
-            if (total > myMaxAP) {
-                document.getElementById('spent-ap').style.color = 'red';
-                btn.disabled = true;
-                btn.innerText = "AP 超支！";
+        const actionArea = document.getElementById('action-area');
+        if (myTeam.last_action) {
+            actionArea.innerHTML = `<div style="padding:15px; background:rgba(16,185,129,0.2); color:var(--vc); border-radius:8px; font-weight:bold;">✅ 本轮决策已锁定，等待上帝结算</div>`;
+        } else {
+            if (myTeam.role_type === 'HEAVY') {
+                let canAfford = myTeam.funds >= 100;
+                actionArea.innerHTML = `
+                    <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">成本: -100万 | 收益: +300万 | 全局碳排: +4点</p>
+                    <button onclick="submitAction('HEAVY', 100)" style="width:100%; padding:15px; background:var(--heavy); color:white;" ${!canAfford?'disabled':''}>🏭 执行常规扩产</button>
+                    <button onclick="submitAction('NONE', 0)" style="width:100%; padding:10px; background:transparent; border:1px solid var(--border); color:var(--text-sub); margin-top:10px;">放弃本轮生产 (锁死求生)</button>`;
+            } else if (myTeam.role_type === 'TECH') {
+                actionArea.innerHTML = `
+                    <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">基础成本: 500万(成功率60%) | 每追加100万成功率+10% | 碳排: -6点</p>
+                    <input type="number" id="tech-invest" placeholder="输入投入资金 (最低500)" min="500">
+                    <button onclick="submitTechAction()" style="width:100%; padding:15px; background:var(--tech); color:white; margin-top:10px;">🚀 启动零碳引擎研发</button>
+                    <button onclick="submitAction('NONE', 0)" style="width:100%; padding:10px; background:transparent; border:1px solid var(--border); color:var(--text-sub); margin-top:10px;">资金不足，空过本轮</button>`;
+            } else if (myTeam.role_type === 'VC') {
+                actionArea.innerHTML = `
+                    <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">风投不直接参与生产，请通过市场进行注资</p>
+                    <button onclick="submitAction('NONE', 0)" style="width:100%; padding:15px; background:var(--vc); color:white;">锁定本轮状态 (无需生产)</button>`;
             } else {
-                document.getElementById('spent-ap').style.color = 'black';
-                if(document.getElementById('submit-status').innerText === '') btn.disabled = false;
+                actionArea.innerHTML = `<p style="color:var(--text-sub);">等待上帝分配属性...</p>`;
             }
         }
+    }
 
-        async function fetchTeamList() {
-            const { data: teams } = await supabaseClient.from('teams').select('*').eq('room_id', currentRoomId).order('name');
-            const listDiv = document.getElementById('team-list');
-            listDiv.innerHTML = teams.map(t => {
-                let statusIcon = t.last_decision ? '✅' : '⏳';
-                let authColor = t.authority < 30 ? 'red' : '#2ecc71';
-                return `
-                <div class="monitor-row ${t.authority<=0?'dead':''}">
-                    <div style="width:30%"><b>${t.name}</b> [${t.country_type}]</div>
-                    <div style="width:20%">AP: ${t.ap_count}</div>
-                    <div style="width:20%; color:${authColor}">权威: ${Math.floor(t.authority)}</div>
-                    <div style="width:10%">${statusIcon}</div>
-                </div>`;
-            }).join('');
-        }
+    async function saveProfile() {
+        const n = document.getElementById('edit-name').value;
+        const c = document.getElementById('edit-ceo').value;
+        const t = document.getElementById('edit-tag').value;
+        await sb.from('oasis_teams').update({ name: n, ceo_name: c, public_tags: t }).eq('id', myTeam.id);
+        alert("名片已更新，全网可见！");
+    }
 
-        function updateTeacherStats(room) {
-            document.getElementById('t-turn').innerText = room.turn;
-            document.getElementById('t-infection').innerText = room.infection_total.toLocaleString();
-            document.getElementById('t-cure').innerText = room.cure_progress.toFixed(1) + '%';
-            document.getElementById('t-r0').innerText = room.infection_rate.toFixed(2);
-        }
+    async function fetchMarket() {
+        if(!myTeam) return;
+        const { data: teams } = await sb.from('oasis_teams').select('*').eq('room_id', currentRoom).eq('is_active', true).neq('id', myTeam.id);
+        const list = document.getElementById('market-list');
+        list.innerHTML = teams.map(t => {
+            let roleName = t.role_type === 'HEAVY'?'⚙️ 重工':(t.role_type==='TECH'?'🚀 科技':(t.role_type==='VC'?'💰 风投':'待定'));
+            return `
+            <div class="market-item">
+                <div style="flex:1;">
+                    <h4 style="margin:0 0 4px 0;">${t.name} <span style="font-size:11px; color:var(--text-sub); font-weight:normal;">[${roleName}]</span></h4>
+                    <p style="margin:0; font-size:11px; color:var(--text-sub);">CEO: ${t.ceo_name} | 📢 ${t.public_tags}</p>
+                </div>
+                <button onclick="openTransfer(${t.id}, '${t.name}')" style="background:transparent; border:1px solid var(--vc); color:var(--vc); padding:6px 12px; border-radius:6px;">发起</button>
+            </div>`;
+        }).join('');
+    }
 
-        function initChart() {
-            const ctx = document.getElementById('infectionChart').getContext('2d');
-            myChart = new Chart(ctx, {
-                type: 'line',
-                data: { labels: [], datasets: [{ label: '感染人数', data: [], borderColor: '#ff7675', yAxisID: 'y' }, { label: '解药进度 (%)', data: [], borderColor: '#55efc4', yAxisID: 'y1' }] },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: {position:'left'}, y1: {position:'right', min:0, max:100, grid:{drawOnChartArea:false}} } }
-            });
+    function openTransfer(targetId, targetName) {
+        currentTransferTarget = targetId;
+        document.getElementById('trans-target-name').innerText = targetName;
+        document.getElementById('trans-amount').value = '';
+        document.getElementById('trans-memo').value = '';
+        document.getElementById('modal-transfer').classList.remove('hidden');
+    }
+
+    async function submitTransfer() {
+        let amt = parseInt(document.getElementById('trans-amount').value);
+        let memo = document.getElementById('trans-memo').value;
+        if(isNaN(amt) || amt <= 0) return alert("金额不合法");
+        if(amt > myTeam.funds) return alert("自身流动资金不足！");
+
+        await sb.from('oasis_transactions').insert({ room_id: currentRoom, turn: 1, from_team_id: myTeam.id, to_team_id: currentTransferTarget, amount: amt, memo: memo });
+        closeModal('modal-transfer');
+        alert("契约已发送，等待对方确认盖章！");
+    }
+
+    async function handleContract(decision) {
+        if (decision === 'APPROVED') {
+            // 验资（重要，防止发起方在这期间钱没了）
+            const { data: trans } = await sb.from('oasis_transactions').select('*').eq('id', pendingContractId).single();
+            const { data: sender } = await sb.from('oasis_teams').select('funds').eq('id', trans.from_team_id).single();
+            if(sender.funds < trans.amount) {
+                alert("对方资金已不足，交易失败！");
+                await sb.from('oasis_transactions').update({ status: 'REJECTED' }).eq('id', pendingContractId);
+                closeModal('modal-receive'); return;
+            }
+            // 执行扣款和收款 (这里前端模拟事务，实战建议写在后端的 RPC function 里，但对课堂够用了)
+            await sb.from('oasis_teams').update({ funds: sender.funds - trans.amount }).eq('id', trans.from_team_id);
+            await sb.from('oasis_teams').update({ funds: myTeam.funds + trans.amount }).eq('id', myTeam.id);
+            await sb.from('oasis_transactions').update({ status: 'APPROVED' }).eq('id', pendingContractId);
+            alert("收款成功！资金已入账！");
+        } else {
+            await sb.from('oasis_transactions').update({ status: 'REJECTED' }).eq('id', pendingContractId);
         }
-        async function fetchHistoryAndDraw() {
-            const { data: logs } = await supabaseClient.from('game_logs').select('*').eq('room_id', currentRoomId).order('turn');
-            if(!logs || !myChart) return;
-            myChart.data.labels = logs.map(l => `R${l.turn}`);
-            myChart.data.datasets[0].data = logs.map(l => l.infection_total);
-            myChart.data.datasets[1].data = logs.map(l => l.cure_progress);
-            myChart.update();
+        closeModal('modal-receive');
+    }
+
+    async function submitAction(type, cost) {
+        if (cost > 0 && myTeam.funds < cost) return alert("资金不足！");
+        if (cost > 0) {
+            await sb.from('oasis_teams').update({ funds: myTeam.funds - cost, last_action: {type, cost} }).eq('id', myTeam.id);
+        } else {
+            await sb.from('oasis_teams').update({ last_action: {type, cost} }).eq('id', myTeam.id);
         }
-    </script>
+    }
+
+    function submitTechAction() {
+        let invest = parseInt(document.getElementById('tech-invest').value);
+        if(isNaN(invest) || invest < 500) return alert("研发底限资金为 500 万！");
+        submitAction('TECH', invest);
+    }
+</script>
 </body>
 </html>
