@@ -366,9 +366,10 @@
                 let rand = Math.random() * 100;
                 
                 if (rand <= prob) {
-                    await sb.from('oasis_teams').update({ dev_score: t.dev_score + 50, last_action: null }).eq('id', t.id);
+                    // ⚠️ 这里加上了 600万 的补贴奖励！
+                    await sb.from('oasis_teams').update({ funds: t.funds + 600, dev_score: t.dev_score + 50, last_action: null }).eq('id', t.id);
                     totalCarbonSub += 6;
-                    triggerTicker(`🎉 突破！[${t.name}] 零碳引擎研发成功！减碳 6点！`);
+                    triggerTicker(`🎉 突破！[${t.name}] 零碳引擎研发成功！减碳 6点并获600万绿色补贴！`);
                 } else {
                     await sb.from('oasis_teams').update({ last_action: null }).eq('id', t.id);
                     triggerTicker(`💥 失败！[${t.name}] 研发失败，${invest}万投资打水漂！`);
@@ -449,8 +450,9 @@
                     <button onclick="submitAction('HEAVY', 100)" style="width:100%; padding:15px; background:var(--heavy); color:white;" ${!canAfford?'disabled':''}>🏭 执行常规扩产</button>
                     <button onclick="submitAction('NONE', 0)" style="width:100%; padding:10px; background:transparent; border:1px solid var(--border); color:var(--text-sub); margin-top:10px;">放弃本轮生产 (锁死求生)</button>`;
             } else if (myTeam.role_type === 'TECH') {
+                // ⚠️ 这里更新了文案，明确告知有 600万 的奖金
                 actionArea.innerHTML = `
-                    <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">基础成本: 500万(成功率60%) | 每追加100万成功率+10% | 碳排: -6点</p>
+                    <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">基础成本: 500万(成功率60%) | 追加资金提胜率 | 碳排: -6点 | 成功奖励: 600万</p>
                     <input type="number" id="tech-invest" placeholder="输入投入资金 (最低500)" min="500">
                     <button onclick="submitTechAction()" style="width:100%; padding:15px; background:var(--tech); color:white; margin-top:10px;">🚀 启动零碳引擎研发</button>
                     <button onclick="submitAction('NONE', 0)" style="width:100%; padding:10px; background:transparent; border:1px solid var(--border); color:var(--text-sub); margin-top:10px;">资金不足，空过本轮</button>`;
