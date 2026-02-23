@@ -75,7 +75,7 @@
                 <option value="3003">房间 3003</option><option value="3004">房间 3004</option>
             </select>
             <input type="password" id="login-tea-pass" placeholder="输入房间密码">
-            <button onclick="teacherLogin()" style="background:var(--text-sub); color:white; width:100%; padding:12px; margin-top:10px;">开启上帝视角</button>
+            <button onclick="teacherLogin()" style="background:var(--text-sub); color:white; width:100%; padding:12px; margin-top:10px;">开启教师视角</button>
         </div>
     </div>
 
@@ -440,7 +440,7 @@
 
         const actionArea = document.getElementById('action-area');
         if (myTeam.last_action) {
-            actionArea.innerHTML = `<div style="padding:15px; background:rgba(16,185,129,0.2); color:var(--vc); border-radius:8px; font-weight:bold;">✅ 本轮决策已锁定，等待上帝结算</div>`;
+            actionArea.innerHTML = `<div style="padding:15px; background:rgba(16,185,129,0.2); color:var(--vc); border-radius:8px; font-weight:bold;">✅ 本轮决策已锁定，等待教师结算</div>`;
         } else {
             if (myTeam.role_type === 'HEAVY') {
                 let canAfford = myTeam.funds >= 100;
@@ -459,7 +459,7 @@
                     <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">风投不直接参与生产，请通过市场进行注资</p>
                     <button onclick="submitAction('NONE', 0)" style="width:100%; padding:15px; background:var(--vc); color:white;">锁定本轮状态 (无需生产)</button>`;
             } else {
-                actionArea.innerHTML = `<p style="color:var(--text-sub);">等待上帝分配属性...</p>`;
+                actionArea.innerHTML = `<p style="color:var(--text-sub);">等待教师分配属性...</p>`;
             }
         }
     }
