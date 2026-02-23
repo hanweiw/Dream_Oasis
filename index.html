@@ -190,7 +190,7 @@
     </div>
 
 <script>
-    // ✅ 已经替换为你项目专用的 Supabase 配置
+    // ✅ Supabase 配置
     const SB_URL = 'https://adjvfvfbjfrtenvbocfw.supabase.co';
     const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkanZmdmZiamZydGVudmJvY2Z3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxMzAzNjEsImV4cCI6MjA4MTcwNjM2MX0.Fzd2LU2ueKg0V47NSC9nQY_5hHaFY8SqJuV281iXKag'; 
     const sb = supabase.createClient(SB_URL, SB_KEY);
@@ -265,7 +265,6 @@
         document.getElementById('t-carbon').innerText = r.global_carbon;
         document.getElementById('t-limit').innerText = r.carbon_limit;
 
-        // 温度映射：0碳 = 1.0度，满碳 = 2.0度
         let temp = 1.0 + (r.global_carbon / r.carbon_limit);
         if(temp > 2.0) temp = 2.0;
         document.getElementById('t-temp-display').innerText = temp.toFixed(1) + "℃";
@@ -287,12 +286,12 @@
         const container = document.getElementById('team-circle');
         container.innerHTML = '';
         const N = activeTeams.length;
-        const R = 230; // 半径
+        const R = 230; 
         
         activeTeams.forEach((t, i) => {
             const angle = (i * (360 / N)) * (Math.PI / 180);
             const x = Math.sin(angle) * R;
-            const y = -Math.cos(angle) * R; // 顶部开始
+            const y = -Math.cos(angle) * R; 
             
             const card = document.createElement('div');
             card.className = 'team-card-t';
@@ -314,7 +313,8 @@
     function triggerTicker(msg) {
         document.getElementById('ticker-msg').innerText = msg;
         const ticker = document.getElementById('ticker-msg');
-        ticker.style.animation = 'none'; ticker.offsetHeight; /* trigger reflow */ ticker.style.animation = null; 
+        ticker.style.animation = 'none'; ticker.offsetHeight; 
+        ticker.style.animation = null; 
     }
 
     async function assignRoles() {
@@ -322,10 +322,8 @@
         const N = activeTeams.length;
         if(N < 2) return alert("至少需要2组在线");
         
-        // 动态计算临界点
         await sb.from('oasis_rooms').update({ carbon_limit: N * 8, global_carbon: 0 }).eq('id', currentRoom);
         
-        // 比例 4:3:3 分配
         let pool = [];
         let numHeavy = Math.round(N * 0.4);
         let numTech = Math.round(N * 0.3);
@@ -334,7 +332,6 @@
         for(let i=0; i<numTech; i++) pool.push({type: 'TECH', funds: 0});
         for(let i=0; i<numVC; i++) pool.push({type: 'VC', funds: 800});
         
-        // 打乱数组
         pool.sort(() => Math.random() - 0.5);
         
         for(let i=0; i<N; i++) {
@@ -355,18 +352,15 @@
         for(let t of activeTeams) {
             let action = t.last_action || {type: 'NONE'};
             if(action.type === 'HEAVY') {
-                // 扩产
                 await sb.from('oasis_teams').update({ funds: t.funds + 300, last_action: null }).eq('id', t.id);
                 totalCarbonAdd += 4;
             } else if (action.type === 'TECH') {
-                // 研发概率结算
                 let invest = action.cost || 500;
                 let prob = 60 + ((invest - 500) / 100) * 10;
                 prob = Math.min(100, prob);
                 let rand = Math.random() * 100;
                 
                 if (rand <= prob) {
-                    // ⚠️ 这里加上了 600万 的补贴奖励！
                     await sb.from('oasis_teams').update({ funds: t.funds + 600, dev_score: t.dev_score + 50, last_action: null }).eq('id', t.id);
                     totalCarbonSub += 6;
                     triggerTicker(`🎉 突破！[${t.name}] 零碳引擎研发成功！减碳 6点并获600万绿色补贴！`);
@@ -394,9 +388,56 @@
         await sb.from('oasis_teams').update({ last_action: null, role_type: '待定', funds: 0 }).eq('room_id', currentRoom);
     }
 
+    // ✅ 完整的导出战报逻辑
     async function exportCSV() {
-        // 简化导出逻辑，生产环境可补全
-        alert("已触发导出，正在拉取 logs...");
+        if (!confirm("即将导出本房间的完整战报数据，是否继续？")) return;
+        
+        try {
+            const { data: logs } = await sb.from('oasis_logs')
+                .select('*')
+                .eq('room_id', currentRoom)
+                .order('exp_id')
+                .order('turn');
+                
+            const { data: teams } = await sb.from('oasis_teams')
+                .select('*')
+                .eq('room_id', currentRoom)
+                .order('role_type');
+
+            let csv = "\uFEFF【第一部分：全局气温与碳排演变记录】\n实验场次,轮数,结算后总碳排,碳排上限(崩溃线),本轮新增碳排(重工),本轮抵消碳排(科技),结算时间\n";
+            
+            if (logs && logs.length > 0) {
+                logs.forEach(l => {
+                    let addC = l.details ? l.details.add : 0;
+                    let subC = l.details ? l.details.sub : 0;
+                    csv += `${l.exp_id},${l.turn},${l.global_carbon},${l.carbon_limit},+${addC},-${subC},${new Date(l.created_at).toLocaleString()}\n`;
+                });
+            } else {
+                csv += "暂无回合结算记录\n";
+            }
+
+            csv += "\n\n【第二部分：企业最终资产与状态榜单】\n系统账号,公司名称,CEO姓名,阵营角色,最终资金(万),最终发展分,最后留存的外交标签\n";
+            if (teams && teams.length > 0) {
+                teams.forEach(t => {
+                    let roleName = t.role_type === 'HEAVY' ? '重工' : (t.role_type === 'TECH' ? '科技' : (t.role_type === 'VC' ? '风投' : '待定'));
+                    let safeName = (t.name || '').replace(/,/g, '，');
+                    let safeCeo = (t.ceo_name || '').replace(/,/g, '，');
+                    let safeTags = (t.public_tags || '').replace(/,/g, '，');
+                    
+                    csv += `${t.username},${safeName},${safeCeo},${roleName},${t.funds},${t.dev_score},${safeTags}\n`;
+                });
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a"); 
+            link.href = URL.createObjectURL(blob);
+            link.download = `筑梦绿洲_房间${currentRoom}_复盘战报.csv`; 
+            link.click();
+            
+        } catch (err) {
+            console.error(err);
+            alert("导出过程中发生错误，请检查网络或控制台。");
+        }
     }
 
     // ================= 学生端核心 =================
@@ -413,7 +454,6 @@
             else document.getElementById('modal-doom').classList.add('hidden');
         }).subscribe();
         
-        // 监听转账请求
         sb.channel('s_trans').on('postgres_changes', { event:'INSERT', schema:'public', table:'oasis_transactions', filter:`to_team_id=eq.${myTeam.id}` }, async (p) => {
             if(p.new.status === 'PENDING') {
                 pendingContractId = p.new.id;
@@ -450,7 +490,6 @@
                     <button onclick="submitAction('HEAVY', 100)" style="width:100%; padding:15px; background:var(--heavy); color:white;" ${!canAfford?'disabled':''}>🏭 执行常规扩产</button>
                     <button onclick="submitAction('NONE', 0)" style="width:100%; padding:10px; background:transparent; border:1px solid var(--border); color:var(--text-sub); margin-top:10px;">放弃本轮生产 (锁死求生)</button>`;
             } else if (myTeam.role_type === 'TECH') {
-                // ⚠️ 这里更新了文案，明确告知有 600万 的奖金
                 actionArea.innerHTML = `
                     <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">基础成本: 500万(成功率60%) | 追加资金提胜率 | 碳排: -6点 | 成功奖励: 600万</p>
                     <input type="number" id="tech-invest" placeholder="输入投入资金 (最低500)" min="500">
@@ -512,7 +551,6 @@
 
     async function handleContract(decision) {
         if (decision === 'APPROVED') {
-            // 验资（重要，防止发起方在这期间钱没了）
             const { data: trans } = await sb.from('oasis_transactions').select('*').eq('id', pendingContractId).single();
             const { data: sender } = await sb.from('oasis_teams').select('funds').eq('id', trans.from_team_id).single();
             if(sender.funds < trans.amount) {
@@ -520,7 +558,6 @@
                 await sb.from('oasis_transactions').update({ status: 'REJECTED' }).eq('id', pendingContractId);
                 closeModal('modal-receive'); return;
             }
-            // 执行扣款和收款 (这里前端模拟事务，实战建议写在后端的 RPC function 里，但对课堂够用了)
             await sb.from('oasis_teams').update({ funds: sender.funds - trans.amount }).eq('id', trans.from_team_id);
             await sb.from('oasis_teams').update({ funds: myTeam.funds + trans.amount }).eq('id', myTeam.id);
             await sb.from('oasis_transactions').update({ status: 'APPROVED' }).eq('id', pendingContractId);
