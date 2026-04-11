@@ -28,14 +28,21 @@
         .doom-bar-container { background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3); margin-bottom: 20px;}
         .doom-bar { height: 16px; background: linear-gradient(90deg, var(--tech), #eab308, var(--danger)); border-radius: 8px; width: 0%; transition: 1s; }
         
-        /* 环形布局核心 (增加高度以适配更多小组) */
+        /* 环形布局与动画核心 */
         .arena { position: relative; width: 100%; min-height: 750px; display: flex; justify-content: center; align-items: center; margin-top: 20px;}
-        .earth-core { width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, #1e293b, #0f172a); border: 2px solid var(--tech); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; box-shadow: 0 0 40px rgba(14, 165, 233, 0.2); }
-        .earth-core h1 { font-size: 50px; margin: 0; color: #eab308; }
+        .earth-core { width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, #1e293b, #0f172a); border: 2px solid var(--tech); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; box-shadow: 0 0 40px rgba(14, 165, 233, 0.2); transition: 0.5s; }
+        .earth-core h1 { font-size: 50px; margin: 0; color: #eab308; transition: 0.5s; }
+        
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 80px rgba(239, 68, 68, 0.8); border-color: rgba(239, 68, 68, 1); transform: scale(1.05); }
+            100% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); }
+        }
+        .critical-earth { animation: pulse-red 1s infinite !important; background: radial-gradient(circle, #450a0a, #0f172a) !important; }
+        .critical-text { color: var(--danger) !important; }
+
         .team-card-t { position: absolute; width: 150px; background: rgba(30, 41, 59, 0.9); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; transform-origin: center; transition: 0.5s; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         .team-card-t .badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 4px; }
-        
-        /* 新增踢人按钮样式 */
         .kick-btn { position: absolute; top: 5px; right: 5px; background: rgba(239,68,68,0.2); color: var(--danger); border: 1px solid var(--danger); border-radius: 4px; padding: 2px 6px; font-size: 10px; cursor: pointer; }
         .kick-btn:hover { background: var(--danger); color: white; }
 
@@ -46,6 +53,7 @@
 
         .ticker { height: 40px; background: var(--card-bg); overflow: hidden; display: flex; align-items: center; border-radius: 8px; margin-top: 20px; border: 1px solid var(--border);}
         .ticker-text { white-space: nowrap; animation: scroll 20s linear infinite; color: var(--vc); padding-left: 100%; }
+        .ticker-danger { color: var(--danger) !important; font-weight: bold; }
         @keyframes scroll { 100% { transform: translateX(-100%); } }
 
         /* Student View */
@@ -87,7 +95,7 @@
         <div class="tea-header">
             <div>
                 <h2 style="margin:0;">🌍 全球控制枢纽 <span id="t-room" style="color:var(--tech); font-size: 16px;"></span></h2>
-                <span style="font-size:12px; color:var(--text-sub);">在线企业: <b id="t-online" style="color:white;">0</b> 家 | 阶段: 第 <b id="t-turn">1</b> 轮</span>
+                <span style="font-size:12px; color:var(--text-sub);">在线企业: <b id="t-online" style="color:white;">0</b> 家 | 阶段: 第 <b id="t-turn">1</b>/6 轮</span>
             </div>
             <div style="display:flex; gap:10px;">
                 <button onclick="clearAllLogins()" style="background:#475569; color:white; padding:8px 15px;">🧹 一键清场</button>
@@ -101,17 +109,20 @@
 
         <div class="doom-bar-container">
             <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:bold; margin-bottom:5px;">
-                <span style="color:var(--danger);">⚠️ 2℃ 生态崩溃临界点 (碳排满额即毁灭)</span>
+                <span style="color:var(--danger);">⚠️ 2.0℃ 生态崩溃临界点 (碳排满额即毁灭)</span>
                 <span>碳排累计: <span id="t-carbon">0</span> / <span id="t-limit">0</span></span>
             </div>
             <div style="background:var(--bg-dark); border-radius:8px; overflow:hidden;"><div id="doom-bar" class="doom-bar"></div></div>
         </div>
 
         <div class="arena">
-            <div class="earth-core">
-                <p style="margin:0; font-size:12px; color:var(--text-sub);">全球表面均温</p>
-                <h1 id="t-temp-display">1.0<span style="font-size:24px">℃</span></h1>
+            <div class="earth-core" id="earth-core">
+                <p style="margin:0; font-size:11px; color:var(--text-sub);">工业化前气温增幅</p>
+                <h1 id="t-temp-display">+1.0<span style="font-size:24px">℃</span></h1>
                 <p id="t-submitted" style="margin:5px 0 0 0; font-size:12px; color:var(--vc);">提交进度: 0/0</p>
+                <div id="disaster-stats" style="margin-top:10px; font-size:11px; color:#f8fafc; text-align:center; opacity:0.8; line-height:1.4;">
+                    海平面: +0cm <br> 极端天气: 正常频次
+                </div>
             </div>
             <div id="team-circle"></div>
         </div>
@@ -122,7 +133,10 @@
     <div id="screen-student" class="hidden stu-container">
         <div class="stu-card" style="display:flex; justify-content:space-between; align-items:center; border-top: 4px solid var(--tech);">
             <div>
-                <span id="s-role-badge" class="badge type-待定" style="font-size:11px; padding:2px 6px; border-radius:4px;">待定</span>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span id="s-role-badge" class="badge type-待定" style="font-size:11px; padding:2px 6px; border-radius:4px;">待定</span>
+                    <span style="font-size:13px; color:var(--text-sub); font-weight:bold;">第 <span id="s-turn" style="color:var(--text-main);">1</span> 轮</span>
+                </div>
                 <h2 id="s-name-display" style="margin:5px 0 0 0;">载入中...</h2>
             </div>
             <button onclick="logout()" style="background:transparent; color:var(--text-sub);">断开连接</button>
@@ -158,7 +172,7 @@
             <h3 style="margin-top:0;">📝 拟定跨界契约</h3>
             <p style="font-size:13px; color:var(--text-sub);">目标: <b id="trans-target-name" style="color:white;"></b></p>
             <input type="number" id="trans-amount" placeholder="输入划转金额 (万)" min="1">
-            <input type="text" id="trans-memo" placeholder="留言承诺 (如: 下轮利润分一半)">
+            <input type="text" id="trans-memo" placeholder="留言承诺 (如: 下轮本息还800万)">
             <div style="display:flex; gap:10px; margin-top:15px;">
                 <button onclick="closeModal('modal-transfer')" style="flex:1; background:transparent; border:1px solid var(--border); color:white; padding:10px;">取消</button>
                 <button onclick="submitTransfer()" style="flex:1; background:var(--vc); color:white; padding:10px;">签署并发送</button>
@@ -183,14 +197,27 @@
         <div class="modal-content modal-danger">
             <h1 style="font-size:50px; margin:0;">🔥</h1>
             <h2 style="color:var(--danger); margin:10px 0;">生态系统全面崩溃</h2>
-            <p style="color:var(--text-sub); font-size:14px; text-align:left; line-height:1.6; background:var(--bg-dark); padding:15px; border-radius:8px;">
-                全球气温升幅突破 2℃，人类进入生死局！<br><br>
-                • <b>基础设施瘫痪：</b> 高温致使铁轨变形、电网超载。<br>
-                • <b>粮食系统崩溃：</b> 极热干旱绝收，饥荒全面爆发。<br>
-                • <b>生态极限：</b> 局部湿球温度超过31℃，户外无法生存。<br><br>
-                <span style="color:var(--danger); font-weight:bold;">系统判定：地球已沦为温室。本轮文明推演宣告失败。</span>
+            <p style="color:var(--text-sub); font-size:13px; text-align:left; line-height:1.6; background:var(--bg-dark); padding:15px; border-radius:8px;">
+                全球平均气温升幅突破 2.0℃ 临界点，多米诺骨牌倒塌，人类进入生死局！<br><br>
+                • <b>基建融化：</b> 持续极端高温致使地表沥青融化、铁轨变形、大规模断电。<br>
+                • <b>致命湿热：</b> 亚热带地区遭遇“35℃致命湿球温度”，排汗散热失效，户外暴露极速致死。<br>
+                • <b>粮仓绝收：</b> 极端干旱与特大洪涝交替，全球粮食供应链彻底断裂。<br><br>
+                <span style="color:var(--danger); font-weight:bold;">系统判定：地球已沦为气候炼狱。本轮文明推演宣告失败。</span>
             </p>
             <button onclick="closeModal('modal-doom')" style="background:var(--border); color:white; width:100%; padding:12px; margin-top:15px;">关闭警报 (进入复盘)</button>
+        </div>
+    </div>
+
+    <div id="modal-victory" class="modal hidden">
+        <div class="modal-content" style="border-top: 8px solid var(--vc); max-width: 500px;">
+            <h1 style="font-size:50px; margin:0;">🌍</h1>
+            <h2 style="color:var(--vc); margin:10px 0;">文明延续，危机解除！</h2>
+            <p style="color:var(--text-sub); font-size:14px; text-align:left; line-height:1.6; background:var(--bg-dark); padding:15px; border-radius:8px;">
+                恭喜各位 CEO 与金牌风投人！我们成功挺过了最艰难的 6 轮岁月。<br><br>
+                通过跨界资源整合与前沿技术创新，我们成功将全球气温升幅控制在了安全线以内。绿洲得以筑梦，人类的未来得以保全。<br><br>
+                <span style="color:var(--tech); font-weight:bold;">请关注教师大屏数据导出，准备见证本届“绿洲首富”与“零碳先锋”的诞生！</span>
+            </p>
+            <button onclick="closeModal('modal-victory')" style="background:var(--border); color:white; width:100%; padding:12px; margin-top:15px;">关闭 (进入资产盘点)</button>
         </div>
     </div>
 
@@ -225,7 +252,6 @@
         if(teaRoom) { currentRoom = teaRoom; initTeacherUI(); }
     };
 
-    // ================= 登录逻辑 =================
     async function studentLogin() {
         const u = document.getElementById('login-user').value.trim();
         const p = document.getElementById('login-pass').value.trim();
@@ -246,7 +272,6 @@
         initTeacherUI();
     }
 
-    // ================= 教师端核心 =================
     async function initTeacherUI() {
         document.getElementById('screen-login').classList.add('hidden');
         document.getElementById('screen-teacher').classList.remove('hidden');
@@ -265,14 +290,43 @@
         const { data: teams } = await sb.from('oasis_teams').select('*').eq('room_id', currentRoom).eq('is_active', true).order('id');
         roomData = r; activeTeams = teams;
 
-        document.getElementById('t-turn').innerText = r.turn;
+        let displayTurn = r.turn > 6 ? 6 : r.turn;
+        document.getElementById('t-turn').innerText = displayTurn;
         document.getElementById('t-online').innerText = teams.length;
         document.getElementById('t-carbon').innerText = r.global_carbon;
         document.getElementById('t-limit').innerText = r.carbon_limit;
 
         let temp = 1.0 + (r.global_carbon / r.carbon_limit);
         if(temp > 2.0) temp = 2.0;
-        document.getElementById('t-temp-display').innerText = temp.toFixed(1) + "℃";
+        let tempStr = "+" + temp.toFixed(1) + "℃";
+        
+        const tempDisp = document.getElementById('t-temp-display');
+        const earthCore = document.getElementById('earth-core');
+        const disasterStats = document.getElementById('disaster-stats');
+        const ticker = document.getElementById('ticker-msg');
+        
+        tempDisp.innerText = tempStr;
+
+        if (temp >= 1.5 && !r.is_collapsed) {
+            earthCore.classList.add('critical-earth');
+            tempDisp.classList.add('critical-text');
+            ticker.classList.add('ticker-danger');
+            
+            let sl = Math.floor((temp - 1.0) * 100); 
+            let freq = Math.floor((temp - 1.0) * 400);
+            disasterStats.innerHTML = `<span style="color:var(--danger)">海平面: +${sl}cm <br> 极端天气: +${freq}% (极其高危)</span>`;
+            
+            if (!ticker.innerText.includes("🚨")) {
+                triggerTicker("🚨 [气候预警] 多地气温破表，局部湿球温度逼近致死线！资金流动出现恐慌！");
+            }
+        } else {
+            earthCore.classList.remove('critical-earth');
+            tempDisp.classList.remove('critical-text');
+            ticker.classList.remove('ticker-danger');
+            
+            let sl = Math.floor((temp - 1.0) * 30);
+            disasterStats.innerHTML = `海平面: +${sl}cm <br> 极端天气: 正常频次`;
+        }
         
         let pct = (r.global_carbon / r.carbon_limit) * 100;
         document.getElementById('doom-bar').style.width = Math.min(100, pct) + "%";
@@ -280,21 +334,20 @@
         let submitted = teams.filter(t => t.last_action !== null).length;
         document.getElementById('t-submitted').innerText = `锁定进度: ${submitted}/${teams.length}`;
 
-        if (r.is_collapsed && document.getElementById('modal-doom').classList.contains('hidden')) {
+        if (r.is_collapsed) {
             document.getElementById('modal-doom').classList.remove('hidden');
+        } else if (r.turn > 6) {
+            document.getElementById('modal-victory').classList.remove('hidden');
         }
 
         renderCircularTeams();
     }
 
-    // 模块2：动态规模适配（圆环半径自适应） & 模块1：单点踢人
     function renderCircularTeams() {
         const container = document.getElementById('team-circle');
         container.innerHTML = '';
         const N = activeTeams.length;
-        
-        // 动态半径：如果组数增多（如30组），圆环自动扩大以防过度拥挤
-        const R = Math.max(230, N * 11); 
+        const R = Math.max(250, N * 11); 
         
         activeTeams.forEach((t, i) => {
             const angle = (i * (360 / N)) * (Math.PI / 180);
@@ -308,7 +361,6 @@
             let statusIcon = t.last_action ? '✅' : '⏳';
             let roleName = t.role_type === 'HEAVY'?'重工':(t.role_type==='TECH'?'科技':(t.role_type==='VC'?'风投':'待定'));
 
-            // 模块1：注入踢人按钮
             card.innerHTML = `
                 <button class="kick-btn" onclick="kickTeam(${t.id}, '${t.name}')">踢出</button>
                 <span class="badge type-${t.role_type}">${roleName} ${statusIcon}</span>
@@ -327,14 +379,12 @@
         ticker.style.animation = null; 
     }
 
-    // 模块1：一键清空所有账号
     async function clearAllLogins() {
         if(!confirm("⚠️ 警告：这将把当前房间所有团队踢下线，仅用于开课前清理！确定吗？")) return;
         await sb.from('oasis_teams').update({ is_active: false }).eq('room_id', currentRoom);
         alert("已清空所有在线账号！");
     }
 
-    // 模块1：踢出单个团队
     async function kickTeam(teamId, teamName) {
         if(!confirm(`要把 [${teamName}] 踢下线吗？`)) return;
         await sb.from('oasis_teams').update({ is_active: false }).eq('id', teamId);
@@ -345,7 +395,6 @@
         const N = activeTeams.length;
         if(N < 2) return alert("至少需要2组在线");
         
-        // 模块2：动态承载上限计算
         await sb.from('oasis_rooms').update({ carbon_limit: N * 8, global_carbon: 0 }).eq('id', currentRoom);
         
         let pool = [];
@@ -364,9 +413,9 @@
         alert("角色与资金分配完毕！");
     }
 
-    // 模块3：结算锁死与防作弊 (防抖处理)
     async function processRound() {
         if(roomData.is_collapsed) return alert("生态已崩溃，无法继续");
+        if(roomData.turn > 6) return alert("6轮考验已结束，请导出战报复盘！");
         if(activeTeams.filter(t => t.last_action===null).length > 0) {
             if(!confirm("还有企业未锁定决策！强制结算将其视为【空过】，继续吗？")) return;
         }
@@ -393,7 +442,7 @@
                     if (rand <= prob) {
                         await sb.from('oasis_teams').update({ funds: t.funds + 600, dev_score: t.dev_score + 50, last_action: null }).eq('id', t.id);
                         totalCarbonSub += 6;
-                        triggerTicker(`🎉 突破！[${t.name}] 零碳引擎研发成功！减碳 6点并获600万绿色补贴！`);
+                        triggerTicker(`🎉 突破！[${t.name}] 研发成功，减碳 6点并获600万绿能补贴！`);
                     } else {
                         await sb.from('oasis_teams').update({ last_action: null }).eq('id', t.id);
                         triggerTicker(`💥 失败！[${t.name}] 研发失败，${invest}万投资打水漂！`);
@@ -414,7 +463,6 @@
             console.error("结算出错:", err);
             alert("结算过程发生错误，请查看控制台！");
         } finally {
-            // 解除防抖锁定
             btn.disabled = false;
             btn.innerText = "🚨 结算本轮";
         }
@@ -429,30 +477,18 @@
 
     async function exportCSV() {
         if (!confirm("即将导出本房间的完整战报数据，是否继续？")) return;
-        
         try {
-            const { data: logs } = await sb.from('oasis_logs')
-                .select('*')
-                .eq('room_id', currentRoom)
-                .order('exp_id')
-                .order('turn');
-                
-            const { data: teams } = await sb.from('oasis_teams')
-                .select('*')
-                .eq('room_id', currentRoom)
-                .order('role_type');
+            const { data: logs } = await sb.from('oasis_logs').select('*').eq('room_id', currentRoom).order('exp_id').order('turn');
+            const { data: teams } = await sb.from('oasis_teams').select('*').eq('room_id', currentRoom).order('role_type');
 
             let csv = "\uFEFF【第一部分：全局气温与碳排演变记录】\n实验场次,轮数,结算后总碳排,碳排上限(崩溃线),本轮新增碳排(重工),本轮抵消碳排(科技),结算时间\n";
-            
             if (logs && logs.length > 0) {
                 logs.forEach(l => {
                     let addC = l.details ? l.details.add : 0;
                     let subC = l.details ? l.details.sub : 0;
                     csv += `${l.exp_id},${l.turn},${l.global_carbon},${l.carbon_limit},+${addC},-${subC},${new Date(l.created_at).toLocaleString()}\n`;
                 });
-            } else {
-                csv += "暂无回合结算记录\n";
-            }
+            } else { csv += "暂无回合结算记录\n"; }
 
             csv += "\n\n【第二部分：企业最终资产与状态榜单】\n系统账号,公司名称,CEO姓名,阵营角色,最终资金(万),最终发展分,最后留存的外交标签\n";
             if (teams && teams.length > 0) {
@@ -461,17 +497,14 @@
                     let safeName = (t.name || '').replace(/,/g, '，');
                     let safeCeo = (t.ceo_name || '').replace(/,/g, '，');
                     let safeTags = (t.public_tags || '').replace(/,/g, '，');
-                    
                     csv += `${t.username},${safeName},${safeCeo},${roleName},${t.funds},${t.dev_score},${safeTags}\n`;
                 });
             }
-
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a"); 
             link.href = URL.createObjectURL(blob);
             link.download = `筑梦绿洲_房间${currentRoom}_复盘战报.csv`; 
             link.click();
-            
         } catch (err) {
             console.error(err);
             alert("导出过程中发生错误，请检查网络或控制台。");
@@ -483,26 +516,36 @@
         document.getElementById('screen-login').classList.add('hidden');
         document.getElementById('screen-student').classList.remove('hidden');
         
+        const { data: r } = await sb.from('oasis_rooms').select('*').eq('id', currentRoom).single();
+        roomData = r;
+        document.getElementById('s-turn').innerText = roomData.turn > 6 ? 6 : roomData.turn;
+
         renderStudentSelf(); fetchMarket();
         
         sb.channel('s_team').on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`id=eq.${myTeam.id}` }, (p) => { 
             myTeam = p.new; 
-            
-            // 模块1：监听防僵尸与强制踢出信号
             if (myTeam.is_active === false) {
                 alert("⚠️ 你已被教师移出系统或清退！请重新登录正确的账号。");
                 localStorage.clear();
                 location.reload();
                 return;
             }
-
             renderStudentSelf(); 
         }).subscribe();
 
         sb.channel('s_market').on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`room_id=eq.${currentRoom}` }, fetchMarket).subscribe();
+        
         sb.channel('s_room').on('postgres_changes', { event:'*', schema:'public', table:'oasis_rooms', filter:`id=eq.${currentRoom}` }, (p) => {
-            if(p.new.is_collapsed) document.getElementById('modal-doom').classList.remove('hidden');
+            roomData = p.new;
+            document.getElementById('s-turn').innerText = roomData.turn > 6 ? 6 : roomData.turn;
+            
+            if (p.new.is_collapsed) document.getElementById('modal-doom').classList.remove('hidden');
             else document.getElementById('modal-doom').classList.add('hidden');
+
+            if (!p.new.is_collapsed && p.new.turn > 6) document.getElementById('modal-victory').classList.remove('hidden');
+            else document.getElementById('modal-victory').classList.add('hidden');
+            
+            renderStudentSelf(); 
         }).subscribe();
         
         sb.channel('s_trans').on('postgres_changes', { event:'INSERT', schema:'public', table:'oasis_transactions', filter:`to_team_id=eq.${myTeam.id}` }, async (p) => {
@@ -530,10 +573,11 @@
         document.getElementById('s-role-badge').innerText = roleName;
         document.getElementById('s-role-badge').className = "badge type-" + myTeam.role_type;
 
-        // 模块3：防盲填与防手抖 (提交后依靠 last_action 进行隐式锁定)
         const actionArea = document.getElementById('action-area');
         if (myTeam.last_action) {
             actionArea.innerHTML = `<div style="padding:15px; background:rgba(16,185,129,0.2); color:var(--vc); border-radius:8px; font-weight:bold;">✅ 本轮决策已锁定，等待教师结算</div>`;
+        } else if (roomData && roomData.turn > 6) {
+            actionArea.innerHTML = `<div style="padding:15px; background:rgba(14,165,233,0.2); color:var(--tech); border-radius:8px; font-weight:bold;">🎉 推演圆满结束，请关注大屏排名</div>`;
         } else {
             if (myTeam.role_type === 'HEAVY') {
                 let canAfford = myTeam.funds >= 100;
@@ -542,8 +586,9 @@
                     <button onclick="submitAction('HEAVY', 100)" style="width:100%; padding:15px; background:var(--heavy); color:white;" ${!canAfford?'disabled':''}>🏭 执行常规扩产</button>
                     <button onclick="submitAction('NONE', 0)" style="width:100%; padding:10px; background:transparent; border:1px solid var(--border); color:var(--text-sub); margin-top:10px;">放弃本轮生产 (锁死求生)</button>`;
             } else if (myTeam.role_type === 'TECH') {
+                // 【升级】加入醒目的 900万必成 提示
                 actionArea.innerHTML = `
-                    <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">基础成本: 500万(成功率60%) | 追加资金提胜率 | 碳排: -6点 | 成功奖励: 600万</p>
+                    <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px; line-height:1.5;">基础成本: 500万(胜率60%) | 每追加100万胜率+10% <br> <b style="color:#eab308; font-size:13px;">(投入900万绝对成功)</b> | 成功奖励: 600万 | 碳排: -6点</p>
                     <input type="number" id="tech-invest" placeholder="输入投入资金 (最低500)" min="500">
                     <button onclick="submitTechAction()" style="width:100%; padding:15px; background:var(--tech); color:white; margin-top:10px;">🚀 启动零碳引擎研发</button>
                     <button onclick="submitAction('NONE', 0)" style="width:100%; padding:10px; background:transparent; border:1px solid var(--border); color:var(--text-sub); margin-top:10px;">资金不足，空过本轮</button>`;
@@ -596,7 +641,7 @@
         if(isNaN(amt) || amt <= 0) return alert("金额不合法");
         if(amt > myTeam.funds) return alert("自身流动资金不足！");
 
-        await sb.from('oasis_transactions').insert({ room_id: currentRoom, turn: 1, from_team_id: myTeam.id, to_team_id: currentTransferTarget, amount: amt, memo: memo });
+        await sb.from('oasis_transactions').insert({ room_id: currentRoom, turn: roomData.turn, from_team_id: myTeam.id, to_team_id: currentTransferTarget, amount: amt, memo: memo });
         closeModal('modal-transfer');
         alert("契约已发送，等待对方确认盖章！");
     }
