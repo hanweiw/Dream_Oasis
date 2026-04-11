@@ -427,12 +427,16 @@
         try {
             let totalCarbonAdd = 0;
             let totalCarbonSub = 0;
+            let teamActionsLog = []; // 存储本轮所有企业的详细操作
             
             for(let t of activeTeams) {
                 let action = t.last_action || {type: 'NONE'};
+                let rName = t.role_type === 'HEAVY' ? '重工' : (t.role_type === 'TECH' ? '科技' : (t.role_type === 'VC' ? '风投' : '待定'));
+                
                 if(action.type === 'HEAVY') {
                     await sb.from('oasis_teams').update({ funds: t.funds + 300, last_action: null }).eq('id', t.id);
                     totalCarbonAdd += 4;
+                    teamActionsLog.push({ name: t.name, role: rName, action: '常规扩产', cost: 100, income: 300, carbon: "+4" });
                 } else if (action.type === 'TECH') {
                     let invest = action.cost || 500;
                     let prob = 60 + ((invest - 500) / 100) * 10;
@@ -442,20 +446,31 @@
                     if (rand <= prob) {
                         await sb.from('oasis_teams').update({ funds: t.funds + 600, dev_score: t.dev_score + 50, last_action: null }).eq('id', t.id);
                         totalCarbonSub += 6;
+                        teamActionsLog.push({ name: t.name, role: rName, action: `研发成功(投${invest}万)`, cost: invest, income: 600, carbon: "-6" });
                         triggerTicker(`🎉 突破！[${t.name}] 研发成功，减碳 6点并获600万绿能补贴！`);
                     } else {
                         await sb.from('oasis_teams').update({ last_action: null }).eq('id', t.id);
+                        teamActionsLog.push({ name: t.name, role: rName, action: `研发失败(投${invest}万)`, cost: invest, income: 0, carbon: "0" });
                         triggerTicker(`💥 失败！[${t.name}] 研发失败，${invest}万投资打水漂！`);
                     }
                 } else {
                     await sb.from('oasis_teams').update({ last_action: null }).eq('id', t.id);
+                    teamActionsLog.push({ name: t.name, role: rName, action: '空过/无生产', cost: 0, income: 0, carbon: "0" });
                 }
             }
 
             let newCarbon = Math.max(0, roomData.global_carbon + totalCarbonAdd - totalCarbonSub);
             let isCol = newCarbon >= roomData.carbon_limit;
 
-            await sb.from('oasis_logs').insert({ room_id: currentRoom, exp_id: roomData.experiment_id, turn: roomData.turn, global_carbon: newCarbon, carbon_limit: roomData.carbon_limit, details: { add: totalCarbonAdd, sub: totalCarbonSub } });
+            // 将详尽操作日志保存到数据库
+            await sb.from('oasis_logs').insert({ 
+                room_id: currentRoom, 
+                exp_id: roomData.experiment_id, 
+                turn: roomData.turn, 
+                global_carbon: newCarbon, 
+                carbon_limit: roomData.carbon_limit, 
+                details: { add: totalCarbonAdd, sub: totalCarbonSub, actions: teamActionsLog } 
+            });
             
             await sb.from('oasis_rooms').update({ global_carbon: newCarbon, turn: roomData.turn + 1, is_collapsed: isCol }).eq('id', currentRoom);
 
@@ -475,11 +490,17 @@
         await sb.from('oasis_teams').update({ last_action: null, role_type: '待定', funds: 0 }).eq('room_id', currentRoom);
     }
 
+    // 🏆 终极版全数据战报导出
     async function exportCSV() {
-        if (!confirm("即将导出本房间的完整战报数据，是否继续？")) return;
+        if (!confirm("即将拉取全量战报数据（包含行动日志与资金流水），是否继续？")) return;
         try {
             const { data: logs } = await sb.from('oasis_logs').select('*').eq('room_id', currentRoom).order('exp_id').order('turn');
             const { data: teams } = await sb.from('oasis_teams').select('*').eq('room_id', currentRoom).order('role_type');
+            const { data: trans } = await sb.from('oasis_transactions').select('*').eq('room_id', currentRoom).order('turn').order('created_at');
+
+            // 建立队伍ID与名称的快速映射
+            let teamMap = {};
+            if (teams) teams.forEach(t => teamMap[t.id] = t.name || t.username);
 
             let csv = "\uFEFF【第一部分：全局气温与碳排演变记录】\n实验场次,轮数,结算后总碳排,碳排上限(崩溃线),本轮新增碳排(重工),本轮抵消碳排(科技),结算时间\n";
             if (logs && logs.length > 0) {
@@ -500,10 +521,38 @@
                     csv += `${t.username},${safeName},${safeCeo},${roleName},${t.funds},${t.dev_score},${safeTags}\n`;
                 });
             }
+
+            csv += "\n\n【第三部分：跨界契约与转账明细】\n轮数,发起方,接收方,转账金额(万),契约留言/承诺,系统状态,转账时间\n";
+            if (trans && trans.length > 0) {
+                trans.forEach(tr => {
+                    let fromName = (teamMap[tr.from_team_id] || '未知').replace(/,/g, '，');
+                    let toName = (teamMap[tr.to_team_id] || '未知').replace(/,/g, '，');
+                    let memo = (tr.memo || '无留言').replace(/,/g, '，');
+                    let statusMap = { 'APPROVED': '✅ 已到账', 'REJECTED': '❌ 被拒绝', 'PENDING': '⏳ 待确认' };
+                    let st = statusMap[tr.status] || tr.status;
+                    csv += `${tr.turn},${fromName},${toName},${tr.amount},${memo},${st},${new Date(tr.created_at).toLocaleString()}\n`;
+                });
+            } else { csv += "暂无跨界转账记录\n"; }
+
+            csv += "\n\n【第四部分：各回合企业行动决策明细】\n轮数,公司名称,阵营,执行行动,投入成本(万),获得收益(万),产生碳排\n";
+            let hasActions = false;
+            if (logs && logs.length > 0) {
+                logs.forEach(l => {
+                    if (l.details && l.details.actions && l.details.actions.length > 0) {
+                        hasActions = true;
+                        l.details.actions.forEach(a => {
+                            let sName = (a.name || '未知').replace(/,/g, '，');
+                            csv += `${l.turn},${sName},${a.role},${a.action},${a.cost},${a.income},${a.carbon}\n`;
+                        });
+                    }
+                });
+            }
+            if (!hasActions) { csv += "暂无企业行动明细记录\n"; }
+
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a"); 
             link.href = URL.createObjectURL(blob);
-            link.download = `筑梦绿洲_房间${currentRoom}_复盘战报.csv`; 
+            link.download = `筑梦绿洲_全量战报_房间${currentRoom}.csv`; 
             link.click();
         } catch (err) {
             console.error(err);
@@ -586,7 +635,6 @@
                     <button onclick="submitAction('HEAVY', 100)" style="width:100%; padding:15px; background:var(--heavy); color:white;" ${!canAfford?'disabled':''}>🏭 执行常规扩产</button>
                     <button onclick="submitAction('NONE', 0)" style="width:100%; padding:10px; background:transparent; border:1px solid var(--border); color:var(--text-sub); margin-top:10px;">放弃本轮生产 (锁死求生)</button>`;
             } else if (myTeam.role_type === 'TECH') {
-                // 【升级】加入醒目的 900万必成 提示
                 actionArea.innerHTML = `
                     <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px; line-height:1.5;">基础成本: 500万(胜率60%) | 每追加100万胜率+10% <br> <b style="color:#eab308; font-size:13px;">(投入900万绝对成功)</b> | 成功奖励: 600万 | 碳排: -6点</p>
                     <input type="number" id="tech-invest" placeholder="输入投入资金 (最低500)" min="500">
