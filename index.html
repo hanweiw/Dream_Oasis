@@ -28,13 +28,17 @@
         .doom-bar-container { background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3); margin-bottom: 20px;}
         .doom-bar { height: 16px; background: linear-gradient(90deg, var(--tech), #eab308, var(--danger)); border-radius: 8px; width: 0%; transition: 1s; }
         
-        /* 环形布局核心 */
-        .arena { position: relative; width: 100%; height: 600px; display: flex; justify-content: center; align-items: center; margin-top: 20px;}
+        /* 环形布局核心 (增加高度以适配更多小组) */
+        .arena { position: relative; width: 100%; min-height: 750px; display: flex; justify-content: center; align-items: center; margin-top: 20px;}
         .earth-core { width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, #1e293b, #0f172a); border: 2px solid var(--tech); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; box-shadow: 0 0 40px rgba(14, 165, 233, 0.2); }
         .earth-core h1 { font-size: 50px; margin: 0; color: #eab308; }
         .team-card-t { position: absolute; width: 150px; background: rgba(30, 41, 59, 0.9); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; transform-origin: center; transition: 0.5s; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
         .team-card-t .badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 4px; }
         
+        /* 新增踢人按钮样式 */
+        .kick-btn { position: absolute; top: 5px; right: 5px; background: rgba(239,68,68,0.2); color: var(--danger); border: 1px solid var(--danger); border-radius: 4px; padding: 2px 6px; font-size: 10px; cursor: pointer; }
+        .kick-btn:hover { background: var(--danger); color: white; }
+
         .type-HEAVY { color: var(--heavy); border: 1px solid var(--heavy); background: rgba(249,115,22,0.1); }
         .type-TECH { color: var(--tech); border: 1px solid var(--tech); background: rgba(14,165,233,0.1); }
         .type-VC { color: var(--vc); border: 1px solid var(--vc); background: rgba(16,185,129,0.1); }
@@ -86,8 +90,9 @@
                 <span style="font-size:12px; color:var(--text-sub);">在线企业: <b id="t-online" style="color:white;">0</b> 家 | 阶段: 第 <b id="t-turn">1</b> 轮</span>
             </div>
             <div style="display:flex; gap:10px;">
+                <button onclick="clearAllLogins()" style="background:#475569; color:white; padding:8px 15px;">🧹 一键清场</button>
                 <button onclick="assignRoles()" style="background:var(--tech); color:white; padding:8px 15px;">🎲 动态分配角色</button>
-                <button onclick="processRound()" style="background:var(--danger); color:white; padding:8px 15px;">🚨 结算本轮</button>
+                <button id="btn-process" onclick="processRound()" style="background:var(--danger); color:white; padding:8px 15px;">🚨 结算本轮</button>
                 <button onclick="resetGame()" style="background:var(--card-bg); color:white; border:1px solid var(--border); padding:8px 15px;">🔄 开启新场次</button>
                 <button onclick="exportCSV()" style="background:var(--vc); color:white; padding:8px 15px;">📥 导出战报</button>
                 <button onclick="logout()" style="background:transparent; color:var(--danger); padding:8px 15px;">登出</button>
@@ -257,7 +262,7 @@
 
     async function fetchTeacherData() {
         const { data: r } = await sb.from('oasis_rooms').select('*').eq('id', currentRoom).single();
-        const { data: teams } = await sb.from('oasis_teams').select('*').eq('room_id', currentRoom).eq('is_active', true);
+        const { data: teams } = await sb.from('oasis_teams').select('*').eq('room_id', currentRoom).eq('is_active', true).order('id');
         roomData = r; activeTeams = teams;
 
         document.getElementById('t-turn').innerText = r.turn;
@@ -282,11 +287,14 @@
         renderCircularTeams();
     }
 
+    // 模块2：动态规模适配（圆环半径自适应） & 模块1：单点踢人
     function renderCircularTeams() {
         const container = document.getElementById('team-circle');
         container.innerHTML = '';
         const N = activeTeams.length;
-        const R = 230; 
+        
+        // 动态半径：如果组数增多（如30组），圆环自动扩大以防过度拥挤
+        const R = Math.max(230, N * 11); 
         
         activeTeams.forEach((t, i) => {
             const angle = (i * (360 / N)) * (Math.PI / 180);
@@ -300,7 +308,9 @@
             let statusIcon = t.last_action ? '✅' : '⏳';
             let roleName = t.role_type === 'HEAVY'?'重工':(t.role_type==='TECH'?'科技':(t.role_type==='VC'?'风投':'待定'));
 
+            // 模块1：注入踢人按钮
             card.innerHTML = `
+                <button class="kick-btn" onclick="kickTeam(${t.id}, '${t.name}')">踢出</button>
                 <span class="badge type-${t.role_type}">${roleName} ${statusIcon}</span>
                 <div style="font-weight:bold; font-size:14px; margin:4px 0;">${t.name}</div>
                 <div style="font-size:11px; color:#94a3b8;">${t.ceo_name} | 资金:${t.funds}</div>
@@ -317,11 +327,25 @@
         ticker.style.animation = null; 
     }
 
+    // 模块1：一键清空所有账号
+    async function clearAllLogins() {
+        if(!confirm("⚠️ 警告：这将把当前房间所有团队踢下线，仅用于开课前清理！确定吗？")) return;
+        await sb.from('oasis_teams').update({ is_active: false }).eq('room_id', currentRoom);
+        alert("已清空所有在线账号！");
+    }
+
+    // 模块1：踢出单个团队
+    async function kickTeam(teamId, teamName) {
+        if(!confirm(`要把 [${teamName}] 踢下线吗？`)) return;
+        await sb.from('oasis_teams').update({ is_active: false }).eq('id', teamId);
+    }
+
     async function assignRoles() {
         if(!confirm("将重置各组初始资金和属性，确定吗？")) return;
         const N = activeTeams.length;
         if(N < 2) return alert("至少需要2组在线");
         
+        // 模块2：动态承载上限计算
         await sb.from('oasis_rooms').update({ carbon_limit: N * 8, global_carbon: 0 }).eq('id', currentRoom);
         
         let pool = [];
@@ -340,45 +364,60 @@
         alert("角色与资金分配完毕！");
     }
 
+    // 模块3：结算锁死与防作弊 (防抖处理)
     async function processRound() {
         if(roomData.is_collapsed) return alert("生态已崩溃，无法继续");
         if(activeTeams.filter(t => t.last_action===null).length > 0) {
             if(!confirm("还有企业未锁定决策！强制结算将其视为【空过】，继续吗？")) return;
         }
 
-        let totalCarbonAdd = 0;
-        let totalCarbonSub = 0;
-        
-        for(let t of activeTeams) {
-            let action = t.last_action || {type: 'NONE'};
-            if(action.type === 'HEAVY') {
-                await sb.from('oasis_teams').update({ funds: t.funds + 300, last_action: null }).eq('id', t.id);
-                totalCarbonAdd += 4;
-            } else if (action.type === 'TECH') {
-                let invest = action.cost || 500;
-                let prob = 60 + ((invest - 500) / 100) * 10;
-                prob = Math.min(100, prob);
-                let rand = Math.random() * 100;
-                
-                if (rand <= prob) {
-                    await sb.from('oasis_teams').update({ funds: t.funds + 600, dev_score: t.dev_score + 50, last_action: null }).eq('id', t.id);
-                    totalCarbonSub += 6;
-                    triggerTicker(`🎉 突破！[${t.name}] 零碳引擎研发成功！减碳 6点并获600万绿色补贴！`);
+        const btn = document.getElementById('btn-process');
+        btn.disabled = true;
+        btn.innerText = "⏳ 结算计算中...";
+
+        try {
+            let totalCarbonAdd = 0;
+            let totalCarbonSub = 0;
+            
+            for(let t of activeTeams) {
+                let action = t.last_action || {type: 'NONE'};
+                if(action.type === 'HEAVY') {
+                    await sb.from('oasis_teams').update({ funds: t.funds + 300, last_action: null }).eq('id', t.id);
+                    totalCarbonAdd += 4;
+                } else if (action.type === 'TECH') {
+                    let invest = action.cost || 500;
+                    let prob = 60 + ((invest - 500) / 100) * 10;
+                    prob = Math.min(100, prob);
+                    let rand = Math.random() * 100;
+                    
+                    if (rand <= prob) {
+                        await sb.from('oasis_teams').update({ funds: t.funds + 600, dev_score: t.dev_score + 50, last_action: null }).eq('id', t.id);
+                        totalCarbonSub += 6;
+                        triggerTicker(`🎉 突破！[${t.name}] 零碳引擎研发成功！减碳 6点并获600万绿色补贴！`);
+                    } else {
+                        await sb.from('oasis_teams').update({ last_action: null }).eq('id', t.id);
+                        triggerTicker(`💥 失败！[${t.name}] 研发失败，${invest}万投资打水漂！`);
+                    }
                 } else {
                     await sb.from('oasis_teams').update({ last_action: null }).eq('id', t.id);
-                    triggerTicker(`💥 失败！[${t.name}] 研发失败，${invest}万投资打水漂！`);
                 }
-            } else {
-                await sb.from('oasis_teams').update({ last_action: null }).eq('id', t.id);
             }
+
+            let newCarbon = Math.max(0, roomData.global_carbon + totalCarbonAdd - totalCarbonSub);
+            let isCol = newCarbon >= roomData.carbon_limit;
+
+            await sb.from('oasis_logs').insert({ room_id: currentRoom, exp_id: roomData.experiment_id, turn: roomData.turn, global_carbon: newCarbon, carbon_limit: roomData.carbon_limit, details: { add: totalCarbonAdd, sub: totalCarbonSub } });
+            
+            await sb.from('oasis_rooms').update({ global_carbon: newCarbon, turn: roomData.turn + 1, is_collapsed: isCol }).eq('id', currentRoom);
+
+        } catch (err) {
+            console.error("结算出错:", err);
+            alert("结算过程发生错误，请查看控制台！");
+        } finally {
+            // 解除防抖锁定
+            btn.disabled = false;
+            btn.innerText = "🚨 结算本轮";
         }
-
-        let newCarbon = Math.max(0, roomData.global_carbon + totalCarbonAdd - totalCarbonSub);
-        let isCol = newCarbon >= roomData.carbon_limit;
-
-        await sb.from('oasis_logs').insert({ room_id: currentRoom, exp_id: roomData.experiment_id, turn: roomData.turn, global_carbon: newCarbon, carbon_limit: roomData.carbon_limit, details: { add: totalCarbonAdd, sub: totalCarbonSub } });
-        
-        await sb.from('oasis_rooms').update({ global_carbon: newCarbon, turn: roomData.turn + 1, is_collapsed: isCol }).eq('id', currentRoom);
     }
 
     async function resetGame() {
@@ -388,7 +427,6 @@
         await sb.from('oasis_teams').update({ last_action: null, role_type: '待定', funds: 0 }).eq('room_id', currentRoom);
     }
 
-    // ✅ 完整的导出战报逻辑
     async function exportCSV() {
         if (!confirm("即将导出本房间的完整战报数据，是否继续？")) return;
         
@@ -447,7 +485,20 @@
         
         renderStudentSelf(); fetchMarket();
         
-        sb.channel('s_team').on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`id=eq.${myTeam.id}` }, (p) => { myTeam = p.new; renderStudentSelf(); }).subscribe();
+        sb.channel('s_team').on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`id=eq.${myTeam.id}` }, (p) => { 
+            myTeam = p.new; 
+            
+            // 模块1：监听防僵尸与强制踢出信号
+            if (myTeam.is_active === false) {
+                alert("⚠️ 你已被教师移出系统或清退！请重新登录正确的账号。");
+                localStorage.clear();
+                location.reload();
+                return;
+            }
+
+            renderStudentSelf(); 
+        }).subscribe();
+
         sb.channel('s_market').on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`room_id=eq.${currentRoom}` }, fetchMarket).subscribe();
         sb.channel('s_room').on('postgres_changes', { event:'*', schema:'public', table:'oasis_rooms', filter:`id=eq.${currentRoom}` }, (p) => {
             if(p.new.is_collapsed) document.getElementById('modal-doom').classList.remove('hidden');
@@ -479,6 +530,7 @@
         document.getElementById('s-role-badge').innerText = roleName;
         document.getElementById('s-role-badge').className = "badge type-" + myTeam.role_type;
 
+        // 模块3：防盲填与防手抖 (提交后依靠 last_action 进行隐式锁定)
         const actionArea = document.getElementById('action-area');
         if (myTeam.last_action) {
             actionArea.innerHTML = `<div style="padding:15px; background:rgba(16,185,129,0.2); color:var(--vc); border-radius:8px; font-weight:bold;">✅ 本轮决策已锁定，等待教师结算</div>`;
