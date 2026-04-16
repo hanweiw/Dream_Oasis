@@ -272,17 +272,25 @@
         initTeacherUI();
     }
 
+    // ================= 教师端核心 (修复通道拥堵) =================
     async function initTeacherUI() {
         document.getElementById('screen-login').classList.add('hidden');
         document.getElementById('screen-teacher').classList.remove('hidden');
         document.getElementById('t-room').innerText = `[${currentRoom}]`;
         
         await fetchTeacherData();
-        sb.channel('t_room').on('postgres_changes', { event:'*', schema:'public', table:'oasis_rooms', filter:`id=eq.${currentRoom}` }, fetchTeacherData).subscribe();
-        sb.channel('t_teams').on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`room_id=eq.${currentRoom}` }, fetchTeacherData).subscribe();
-        sb.channel('t_trans').on('postgres_changes', { event:'INSERT', schema:'public', table:'oasis_transactions', filter:`room_id=eq.${currentRoom}` }, (p) => {
-            if(p.new.status === 'APPROVED') triggerTicker(`💰 契约达成！交易额: ${p.new.amount}万`);
-        }).subscribe();
+        
+        // 【核心修复：单一复用通道】极大减少 WebSocket 并发，解决延迟问题
+        const teacherChannel = sb.channel('teacher_room_' + currentRoom);
+        teacherChannel
+            .on('postgres_changes', { event:'*', schema:'public', table:'oasis_rooms', filter:`id=eq.${currentRoom}` }, fetchTeacherData)
+            .on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`room_id=eq.${currentRoom}` }, fetchTeacherData)
+            .on('postgres_changes', { event:'INSERT', schema:'public', table:'oasis_transactions', filter:`room_id=eq.${currentRoom}` }, (p) => {
+                if(p.new.status === 'APPROVED') triggerTicker(`💰 契约达成！交易额: ${p.new.amount}万`);
+            })
+            .subscribe((status) => {
+                if(status === 'SUBSCRIBED') console.log('✅ 教师端实时通道连接成功！');
+            });
     }
 
     async function fetchTeacherData() {
@@ -381,7 +389,7 @@
 
     async function clearAllLogins() {
         if(!confirm("⚠️ 警告：这将把当前房间所有团队踢下线，仅用于开课前清理！确定吗？")) return;
-        await sb.from('oasis_teams').update({ is_active: false }).eq('room_id', currentRoom);
+        await sb.from('oasis_teams').update({ is_active: false, funds: 0, dev_score: 0 }).eq('room_id', currentRoom);
         alert("已清空所有在线账号！");
     }
 
@@ -427,7 +435,7 @@
         try {
             let totalCarbonAdd = 0;
             let totalCarbonSub = 0;
-            let teamActionsLog = []; // 存储本轮所有企业的详细操作
+            let teamActionsLog = []; 
             
             for(let t of activeTeams) {
                 let action = t.last_action || {type: 'NONE'};
@@ -462,7 +470,6 @@
             let newCarbon = Math.max(0, roomData.global_carbon + totalCarbonAdd - totalCarbonSub);
             let isCol = newCarbon >= roomData.carbon_limit;
 
-            // 将详尽操作日志保存到数据库
             await sb.from('oasis_logs').insert({ 
                 room_id: currentRoom, 
                 exp_id: roomData.experiment_id, 
@@ -483,22 +490,35 @@
         }
     }
 
+    // 【核心修复：彻底清空数据】解决导出时混入旧分数的残留问题
     async function resetGame() {
-        if(!confirm("开启新场次，重置气温和回合数？")) return;
+        if(!confirm("⚠️ 开启新场次将彻底清空当前数据，并将全体学生强制踢下线，确定吗？")) return;
         const { data: r } = await sb.from('oasis_rooms').select('experiment_id').eq('id', currentRoom).single();
+        
         await sb.from('oasis_rooms').update({ experiment_id: r.experiment_id + 1, turn: 1, global_carbon: 0, is_collapsed: false }).eq('id', currentRoom);
-        await sb.from('oasis_teams').update({ last_action: null, role_type: '待定', funds: 0 }).eq('room_id', currentRoom);
+        
+        // 强制抹除所有账号的状态、资金和分数，踢下线
+        await sb.from('oasis_teams').update({ 
+            last_action: null, 
+            role_type: '待定', 
+            funds: 0, 
+            dev_score: 0,        // 清空发展分
+            is_active: false,    // 强制踢下线
+            public_tags: ''      // 清空旧标签
+        }).eq('room_id', currentRoom);
+
+        alert("新场次已重置完毕！旧数据已清空，请让学生们重新扫码登录。");
     }
 
-    // 🏆 终极版全数据战报导出
+    // 【核心修复：精准导出】只导出本次上线的企业
     async function exportCSV() {
         if (!confirm("即将拉取全量战报数据（包含行动日志与资金流水），是否继续？")) return;
         try {
             const { data: logs } = await sb.from('oasis_logs').select('*').eq('room_id', currentRoom).order('exp_id').order('turn');
-            const { data: teams } = await sb.from('oasis_teams').select('*').eq('room_id', currentRoom).order('role_type');
+            // 过滤：只拉取本场次 is_active = true 的活跃企业
+            const { data: teams } = await sb.from('oasis_teams').select('*').eq('room_id', currentRoom).eq('is_active', true).order('role_type');
             const { data: trans } = await sb.from('oasis_transactions').select('*').eq('room_id', currentRoom).order('turn').order('created_at');
 
-            // 建立队伍ID与名称的快速映射
             let teamMap = {};
             if (teams) teams.forEach(t => teamMap[t.id] = t.name || t.username);
 
@@ -511,7 +531,7 @@
                 });
             } else { csv += "暂无回合结算记录\n"; }
 
-            csv += "\n\n【第二部分：企业最终资产与状态榜单】\n系统账号,公司名称,CEO姓名,阵营角色,最终资金(万),最终发展分,最后留存的外交标签\n";
+            csv += "\n\n【第二部分：企业最终资产与状态榜单(仅显示本次参战企业)】\n系统账号,公司名称,CEO姓名,阵营角色,最终资金(万),最终发展分,最后留存的外交标签\n";
             if (teams && teams.length > 0) {
                 teams.forEach(t => {
                     let roleName = t.role_type === 'HEAVY' ? '重工' : (t.role_type === 'TECH' ? '科技' : (t.role_type === 'VC' ? '风投' : '待定'));
@@ -560,7 +580,7 @@
         }
     }
 
-    // ================= 学生端核心 =================
+    // ================= 学生端核心 (修复通道拥堵) =================
     async function initStudentUI() {
         document.getElementById('screen-login').classList.add('hidden');
         document.getElementById('screen-student').classList.remove('hidden');
@@ -571,42 +591,45 @@
 
         renderStudentSelf(); fetchMarket();
         
-        sb.channel('s_team').on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`id=eq.${myTeam.id}` }, (p) => { 
-            myTeam = p.new; 
-            if (myTeam.is_active === false) {
-                alert("⚠️ 你已被教师移出系统或清退！请重新登录正确的账号。");
-                localStorage.clear();
-                location.reload();
-                return;
-            }
-            renderStudentSelf(); 
-        }).subscribe();
+        // 【核心修复：单一复用通道】极大减少 WebSocket 并发，彻底解决学生端刷新才能更新的Bug
+        const studentChannel = sb.channel('student_team_' + myTeam.id);
+        studentChannel
+            .on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`id=eq.${myTeam.id}` }, (p) => { 
+                myTeam = p.new; 
+                if (myTeam.is_active === false) {
+                    alert("⚠️ 你已被教师移出系统或清退！请重新登录正确的账号。");
+                    localStorage.clear();
+                    location.reload();
+                    return;
+                }
+                renderStudentSelf(); 
+            })
+            .on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`room_id=eq.${currentRoom}` }, fetchMarket)
+            .on('postgres_changes', { event:'*', schema:'public', table:'oasis_rooms', filter:`id=eq.${currentRoom}` }, (p) => {
+                roomData = p.new;
+                document.getElementById('s-turn').innerText = roomData.turn > 6 ? 6 : roomData.turn;
+                
+                if (p.new.is_collapsed) document.getElementById('modal-doom').classList.remove('hidden');
+                else document.getElementById('modal-doom').classList.add('hidden');
 
-        sb.channel('s_market').on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`room_id=eq.${currentRoom}` }, fetchMarket).subscribe();
-        
-        sb.channel('s_room').on('postgres_changes', { event:'*', schema:'public', table:'oasis_rooms', filter:`id=eq.${currentRoom}` }, (p) => {
-            roomData = p.new;
-            document.getElementById('s-turn').innerText = roomData.turn > 6 ? 6 : roomData.turn;
-            
-            if (p.new.is_collapsed) document.getElementById('modal-doom').classList.remove('hidden');
-            else document.getElementById('modal-doom').classList.add('hidden');
-
-            if (!p.new.is_collapsed && p.new.turn > 6) document.getElementById('modal-victory').classList.remove('hidden');
-            else document.getElementById('modal-victory').classList.add('hidden');
-            
-            renderStudentSelf(); 
-        }).subscribe();
-        
-        sb.channel('s_trans').on('postgres_changes', { event:'INSERT', schema:'public', table:'oasis_transactions', filter:`to_team_id=eq.${myTeam.id}` }, async (p) => {
-            if(p.new.status === 'PENDING') {
-                pendingContractId = p.new.id;
-                const { data: sender } = await sb.from('oasis_teams').select('name').eq('id', p.new.from_team_id).single();
-                document.getElementById('recv-from').innerText = sender.name;
-                document.getElementById('recv-amount').innerText = p.new.amount;
-                document.getElementById('recv-memo').innerText = p.new.memo || '无留言';
-                document.getElementById('modal-receive').classList.remove('hidden');
-            }
-        }).subscribe();
+                if (!p.new.is_collapsed && p.new.turn > 6) document.getElementById('modal-victory').classList.remove('hidden');
+                else document.getElementById('modal-victory').classList.add('hidden');
+                
+                renderStudentSelf(); 
+            })
+            .on('postgres_changes', { event:'INSERT', schema:'public', table:'oasis_transactions', filter:`to_team_id=eq.${myTeam.id}` }, async (p) => {
+                if(p.new.status === 'PENDING') {
+                    pendingContractId = p.new.id;
+                    const { data: sender } = await sb.from('oasis_teams').select('name').eq('id', p.new.from_team_id).single();
+                    document.getElementById('recv-from').innerText = sender.name;
+                    document.getElementById('recv-amount').innerText = p.new.amount;
+                    document.getElementById('recv-memo').innerText = p.new.memo || '无留言';
+                    document.getElementById('modal-receive').classList.remove('hidden');
+                }
+            })
+            .subscribe((status) => {
+                if(status === 'SUBSCRIBED') console.log('✅ 学生端实时通道连接成功！');
+            });
     }
 
     function renderStudentSelf() {
