@@ -28,9 +28,9 @@
         .doom-bar-container { background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3); margin-bottom: 20px;}
         .doom-bar { height: 16px; background: linear-gradient(90deg, var(--tech), #eab308, var(--danger)); border-radius: 8px; width: 0%; transition: 1s; }
         
-        /* 环形布局与动画核心 */
-        .arena { position: relative; width: 100%; min-height: 750px; display: flex; justify-content: center; align-items: center; margin-top: 20px;}
-        .earth-core { width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, #1e293b, #0f172a); border: 2px solid var(--tech); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; box-shadow: 0 0 40px rgba(14, 165, 233, 0.2); transition: 0.5s; }
+        /* 修改后的网格布局与动画核心 */
+        .arena { width: 100%; display: flex; flex-direction: column; align-items: center; margin-top: 20px; }
+        .earth-core { width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, #1e293b, #0f172a); border: 2px solid var(--tech); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; box-shadow: 0 0 40px rgba(14, 165, 233, 0.2); transition: 0.5s; margin-bottom: 30px; }
         .earth-core h1 { font-size: 50px; margin: 0; color: #eab308; transition: 0.5s; }
         
         @keyframes pulse-red {
@@ -41,7 +41,11 @@
         .critical-earth { animation: pulse-red 1s infinite !important; background: radial-gradient(circle, #450a0a, #0f172a) !important; }
         .critical-text { color: var(--danger) !important; }
 
-        .team-card-t { position: absolute; width: 150px; background: rgba(30, 41, 59, 0.9); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; transform-origin: center; transition: 0.5s; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        /* 新增矩阵网格容器 */
+        .team-grid { width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; justify-items: center; padding-bottom: 20px; }
+
+        /* 移除绝对定位，改为相对定位适应网格 */
+        .team-card-t { position: relative; width: 100%; background: rgba(30, 41, 59, 0.9); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; transition: 0.5s; box-shadow: 0 5px 15px rgba(0,0,0,0.5); box-sizing: border-box; }
         .team-card-t .badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-bottom: 4px; }
         .kick-btn { position: absolute; top: 5px; right: 5px; background: rgba(239,68,68,0.2); color: var(--danger); border: 1px solid var(--danger); border-radius: 4px; padding: 2px 6px; font-size: 10px; cursor: pointer; }
         .kick-btn:hover { background: var(--danger); color: white; }
@@ -124,7 +128,7 @@
                     海平面: +0cm <br> 极端天气: 正常频次
                 </div>
             </div>
-            <div id="team-circle"></div>
+            <div id="team-grid" class="team-grid"></div>
         </div>
 
         <div class="ticker"><div class="ticker-text" id="ticker-msg">等待产生跨界契约...</div></div>
@@ -348,23 +352,16 @@
             document.getElementById('modal-victory').classList.remove('hidden');
         }
 
-        renderCircularTeams();
+        renderGridTeams();
     }
 
-    function renderCircularTeams() {
-        const container = document.getElementById('team-circle');
+    function renderGridTeams() {
+        const container = document.getElementById('team-grid');
         container.innerHTML = '';
-        const N = activeTeams.length;
-        const R = Math.max(250, N * 11); 
         
-        activeTeams.forEach((t, i) => {
-            const angle = (i * (360 / N)) * (Math.PI / 180);
-            const x = Math.sin(angle) * R;
-            const y = -Math.cos(angle) * R; 
-            
+        activeTeams.forEach((t) => {
             const card = document.createElement('div');
             card.className = 'team-card-t';
-            card.style.transform = `translate(${x}px, ${y}px)`;
             
             let statusIcon = t.last_action ? '✅' : '⏳';
             let roleName = t.role_type === 'HEAVY'?'重工':(t.role_type==='TECH'?'科技':(t.role_type==='VC'?'风投':'待定'));
@@ -374,17 +371,50 @@
                 <span class="badge type-${t.role_type}">${roleName} ${statusIcon}</span>
                 <div style="font-weight:bold; font-size:14px; margin:4px 0;">${t.name}</div>
                 <div style="font-size:11px; color:#94a3b8;">${t.ceo_name} | 资金:${t.funds}</div>
-                <div style="font-size:10px; margin-top:6px; color:#facc15;">${t.public_tags}</div>
+                <div style="font-size:10px; margin-top:6px; color:#facc15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.public_tags || '无标签'}</div>
             `;
             container.appendChild(card);
         });
     }
 
+    // 新增：全局消息缓冲池与防抖定时器
+    let tickerBatch = ["🌍 筑梦绿洲网络已就绪，等待交易产生..."];
+    let tickerTimeout = null;
+
     function triggerTicker(msg) {
-        document.getElementById('ticker-msg').innerText = msg;
-        const ticker = document.getElementById('ticker-msg');
-        ticker.style.animation = 'none'; ticker.offsetHeight; 
-        ticker.style.animation = null; 
+        // 如果池子里是默认开场白，先将其清空
+        if (tickerBatch[0].includes("筑梦绿洲网络已就绪")) {
+            tickerBatch.shift();
+        }
+        
+        // 将新消息推入缓冲池
+        tickerBatch.push(msg);
+        
+        // 为了防止内存溢出和跑马灯过长，最多保留最近的 15 条大事件
+        if (tickerBatch.length > 15) {
+            tickerBatch.shift();
+        }
+
+        // 清除旧的定时器（防抖核心）
+        if (tickerTimeout) clearTimeout(tickerTimeout);
+
+        // 等待 100毫秒
+        tickerTimeout = setTimeout(() => {
+            const ticker = document.getElementById('ticker-msg');
+            
+            // 将所有消息用醒目的星星符号拼接成一条长长的弹幕
+            ticker.innerHTML = tickerBatch.join('&nbsp;&nbsp;&nbsp;&nbsp;🚀&nbsp;&nbsp;&nbsp;&nbsp;');
+            
+            // 重新开始动画
+            ticker.style.animation = 'none'; 
+            ticker.offsetHeight; // 触发浏览器强制重绘
+            
+            // 动态计算滚动时间：字数越多，滚动越慢
+            let textLen = ticker.innerText.length;
+            let duration = Math.max(20, textLen * 0.15); 
+            
+            ticker.style.animation = `scroll ${duration}s linear infinite`; 
+        }, 100);
     }
 
     async function clearAllLogins() {
@@ -441,8 +471,13 @@
                 let action = t.last_action || {type: 'NONE'};
                 let rName = t.role_type === 'HEAVY' ? '重工' : (t.role_type === 'TECH' ? '科技' : (t.role_type === 'VC' ? '风投' : '待定'));
                 
+                // 【核心修复3】实时拉取这支队伍最新资金，防止覆盖学生刚收到的转账
+                const { data: latestTeam } = await sb.from('oasis_teams').select('funds, dev_score').eq('id', t.id).single();
+                let currentFunds = latestTeam ? latestTeam.funds : t.funds;
+                let currentDevScore = latestTeam ? latestTeam.dev_score : t.dev_score;
+                
                 if(action.type === 'HEAVY') {
-                    await sb.from('oasis_teams').update({ funds: t.funds + 300, last_action: null }).eq('id', t.id);
+                    await sb.from('oasis_teams').update({ funds: currentFunds + 300, last_action: null }).eq('id', t.id);
                     totalCarbonAdd += 4;
                     teamActionsLog.push({ name: t.name, role: rName, action: '常规扩产', cost: 100, income: 300, carbon: "+4" });
                 } else if (action.type === 'TECH') {
@@ -452,7 +487,7 @@
                     let rand = Math.random() * 100;
                     
                     if (rand <= prob) {
-                        await sb.from('oasis_teams').update({ funds: t.funds + 600, dev_score: t.dev_score + 50, last_action: null }).eq('id', t.id);
+                        await sb.from('oasis_teams').update({ funds: currentFunds + 600, dev_score: currentDevScore + 50, last_action: null }).eq('id', t.id);
                         totalCarbonSub += 6;
                         teamActionsLog.push({ name: t.name, role: rName, action: `研发成功(投${invest}万)`, cost: invest, income: 600, carbon: "-6" });
                         triggerTicker(`🎉 突破！[${t.name}] 研发成功，减碳 6点并获600万绿能补贴！`);
@@ -718,22 +753,41 @@
     }
 
     async function handleContract(decision) {
-        if (decision === 'APPROVED') {
-            const { data: trans } = await sb.from('oasis_transactions').select('*').eq('id', pendingContractId).single();
-            const { data: sender } = await sb.from('oasis_teams').select('funds').eq('id', trans.from_team_id).single();
-            if(sender.funds < trans.amount) {
-                alert("对方资金已不足，交易失败！");
+        // 【防抖修复】立即禁用按钮，防止学生狂点多次触发
+        const buttons = document.querySelectorAll('#modal-receive button');
+        buttons.forEach(b => b.disabled = true);
+
+        try {
+            if (decision === 'APPROVED') {
+                const { data: trans } = await sb.from('oasis_transactions').select('*').eq('id', pendingContractId).single();
+                
+                // 【核心修复1】如果该订单已经被处理过，直接拦截
+                if (trans.status !== 'PENDING') {
+                    alert("该契约已被处理，请勿重复点击！");
+                    return;
+                }
+
+                const { data: sender } = await sb.from('oasis_teams').select('funds').eq('id', trans.from_team_id).single();
+                if(sender.funds < trans.amount) {
+                    alert("对方资金已不足，交易失败！");
+                    await sb.from('oasis_transactions').update({ status: 'REJECTED' }).eq('id', pendingContractId);
+                    return;
+                }
+                
+                // 【核心修复2】去数据库拉取最新的自己资金，防并发覆盖
+                const { data: receiver } = await sb.from('oasis_teams').select('funds').eq('id', myTeam.id).single();
+
+                await sb.from('oasis_teams').update({ funds: sender.funds - trans.amount }).eq('id', trans.from_team_id);
+                await sb.from('oasis_teams').update({ funds: receiver.funds + trans.amount }).eq('id', myTeam.id);
+                await sb.from('oasis_transactions').update({ status: 'APPROVED' }).eq('id', pendingContractId);
+                alert("收款成功！资金已入账！");
+            } else {
                 await sb.from('oasis_transactions').update({ status: 'REJECTED' }).eq('id', pendingContractId);
-                closeModal('modal-receive'); return;
             }
-            await sb.from('oasis_teams').update({ funds: sender.funds - trans.amount }).eq('id', trans.from_team_id);
-            await sb.from('oasis_teams').update({ funds: myTeam.funds + trans.amount }).eq('id', myTeam.id);
-            await sb.from('oasis_transactions').update({ status: 'APPROVED' }).eq('id', pendingContractId);
-            alert("收款成功！资金已入账！");
-        } else {
-            await sb.from('oasis_transactions').update({ status: 'REJECTED' }).eq('id', pendingContractId);
+        } finally {
+            buttons.forEach(b => b.disabled = false);
+            closeModal('modal-receive');
         }
-        closeModal('modal-receive');
     }
 
     async function submitAction(type, cost) {
