@@ -28,7 +28,7 @@
         .doom-bar-container { background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.3); margin-bottom: 20px;}
         .doom-bar { height: 16px; background: linear-gradient(90deg, var(--tech), #eab308, var(--danger)); border-radius: 8px; width: 0%; transition: 1s; }
         
-        /* 修改后的网格布局与动画核心 */
+        /* ------------------ 大屏矩阵布局核心 ------------------ */
         .arena { width: 100%; display: flex; flex-direction: column; align-items: center; margin-top: 20px; }
         .earth-core { width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, #1e293b, #0f172a); border: 2px solid var(--tech); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; box-shadow: 0 0 40px rgba(14, 165, 233, 0.2); transition: 0.5s; margin-bottom: 30px; }
         .earth-core h1 { font-size: 50px; margin: 0; color: #eab308; transition: 0.5s; }
@@ -276,7 +276,7 @@
         initTeacherUI();
     }
 
-    // ================= 教师端核心 (修复通道拥堵) =================
+    // ================= 教师端核心 =================
     async function initTeacherUI() {
         document.getElementById('screen-login').classList.add('hidden');
         document.getElementById('screen-teacher').classList.remove('hidden');
@@ -284,7 +284,6 @@
         
         await fetchTeacherData();
         
-        // 【核心修复：单一复用通道】极大减少 WebSocket 并发，解决延迟问题
         const teacherChannel = sb.channel('teacher_room_' + currentRoom);
         teacherChannel
             .on('postgres_changes', { event:'*', schema:'public', table:'oasis_rooms', filter:`id=eq.${currentRoom}` }, fetchTeacherData)
@@ -355,6 +354,7 @@
         renderGridTeams();
     }
 
+    // ------------------ 修改为网格渲染并加入发展分 ------------------
     function renderGridTeams() {
         const container = document.getElementById('team-grid');
         container.innerHTML = '';
@@ -366,50 +366,45 @@
             let statusIcon = t.last_action ? '✅' : '⏳';
             let roleName = t.role_type === 'HEAVY'?'重工':(t.role_type==='TECH'?'科技':(t.role_type==='VC'?'风投':'待定'));
 
+            // 如果是科技公司，则在资金后面拼接展示发展分
+            let extraInfo = t.role_type === 'TECH' ? ` | 发展分:${t.dev_score}` : '';
+
             card.innerHTML = `
                 <button class="kick-btn" onclick="kickTeam(${t.id}, '${t.name}')">踢出</button>
                 <span class="badge type-${t.role_type}">${roleName} ${statusIcon}</span>
                 <div style="font-weight:bold; font-size:14px; margin:4px 0;">${t.name}</div>
-                <div style="font-size:11px; color:#94a3b8;">${t.ceo_name} | 资金:${t.funds}</div>
+                <div style="font-size:11px; color:#94a3b8;">${t.ceo_name} | 资金:${t.funds}${extraInfo}</div>
                 <div style="font-size:10px; margin-top:6px; color:#facc15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.public_tags || '无标签'}</div>
             `;
             container.appendChild(card);
         });
     }
 
-    // 新增：全局消息缓冲池与防抖定时器
+    // ------------------ 修复后的弹幕队列缓冲 ------------------
     let tickerBatch = ["🌍 筑梦绿洲网络已就绪，等待交易产生..."];
     let tickerTimeout = null;
 
     function triggerTicker(msg) {
-        // 如果池子里是默认开场白，先将其清空
         if (tickerBatch[0].includes("筑梦绿洲网络已就绪")) {
             tickerBatch.shift();
         }
         
-        // 将新消息推入缓冲池
         tickerBatch.push(msg);
         
-        // 为了防止内存溢出和跑马灯过长，最多保留最近的 15 条大事件
         if (tickerBatch.length > 15) {
             tickerBatch.shift();
         }
 
-        // 清除旧的定时器（防抖核心）
         if (tickerTimeout) clearTimeout(tickerTimeout);
 
-        // 等待 100毫秒
         tickerTimeout = setTimeout(() => {
             const ticker = document.getElementById('ticker-msg');
             
-            // 将所有消息用醒目的星星符号拼接成一条长长的弹幕
             ticker.innerHTML = tickerBatch.join('&nbsp;&nbsp;&nbsp;&nbsp;🚀&nbsp;&nbsp;&nbsp;&nbsp;');
             
-            // 重新开始动画
             ticker.style.animation = 'none'; 
-            ticker.offsetHeight; // 触发浏览器强制重绘
+            ticker.offsetHeight; 
             
-            // 动态计算滚动时间：字数越多，滚动越慢
             let textLen = ticker.innerText.length;
             let duration = Math.max(20, textLen * 0.15); 
             
@@ -451,6 +446,7 @@
         alert("角色与资金分配完毕！");
     }
 
+    // ------------------ 修复后的教师结算防覆盖 ------------------
     async function processRound() {
         if(roomData.is_collapsed) return alert("生态已崩溃，无法继续");
         if(roomData.turn > 6) return alert("6轮考验已结束，请导出战报复盘！");
@@ -471,7 +467,7 @@
                 let action = t.last_action || {type: 'NONE'};
                 let rName = t.role_type === 'HEAVY' ? '重工' : (t.role_type === 'TECH' ? '科技' : (t.role_type === 'VC' ? '风投' : '待定'));
                 
-                // 【核心修复3】实时拉取这支队伍最新资金，防止覆盖学生刚收到的转账
+                // 【防覆盖修复】实时拉取这支队伍最新资金
                 const { data: latestTeam } = await sb.from('oasis_teams').select('funds, dev_score').eq('id', t.id).single();
                 let currentFunds = latestTeam ? latestTeam.funds : t.funds;
                 let currentDevScore = latestTeam ? latestTeam.dev_score : t.dev_score;
@@ -525,32 +521,28 @@
         }
     }
 
-    // 【核心修复：彻底清空数据】解决导出时混入旧分数的残留问题
     async function resetGame() {
         if(!confirm("⚠️ 开启新场次将彻底清空当前数据，并将全体学生强制踢下线，确定吗？")) return;
         const { data: r } = await sb.from('oasis_rooms').select('experiment_id').eq('id', currentRoom).single();
         
         await sb.from('oasis_rooms').update({ experiment_id: r.experiment_id + 1, turn: 1, global_carbon: 0, is_collapsed: false }).eq('id', currentRoom);
         
-        // 强制抹除所有账号的状态、资金和分数，踢下线
         await sb.from('oasis_teams').update({ 
             last_action: null, 
             role_type: '待定', 
             funds: 0, 
-            dev_score: 0,        // 清空发展分
-            is_active: false,    // 强制踢下线
-            public_tags: ''      // 清空旧标签
+            dev_score: 0, 
+            is_active: false, 
+            public_tags: ''  
         }).eq('room_id', currentRoom);
 
         alert("新场次已重置完毕！旧数据已清空，请让学生们重新扫码登录。");
     }
 
-    // 【核心修复：精准导出】只导出本次上线的企业
     async function exportCSV() {
         if (!confirm("即将拉取全量战报数据（包含行动日志与资金流水），是否继续？")) return;
         try {
             const { data: logs } = await sb.from('oasis_logs').select('*').eq('room_id', currentRoom).order('exp_id').order('turn');
-            // 过滤：只拉取本场次 is_active = true 的活跃企业
             const { data: teams } = await sb.from('oasis_teams').select('*').eq('room_id', currentRoom).eq('is_active', true).order('role_type');
             const { data: trans } = await sb.from('oasis_transactions').select('*').eq('room_id', currentRoom).order('turn').order('created_at');
 
@@ -615,7 +607,7 @@
         }
     }
 
-    // ================= 学生端核心 (修复通道拥堵) =================
+    // ================= 学生端核心 =================
     async function initStudentUI() {
         document.getElementById('screen-login').classList.add('hidden');
         document.getElementById('screen-student').classList.remove('hidden');
@@ -626,7 +618,6 @@
 
         renderStudentSelf(); fetchMarket();
         
-        // 【核心修复：单一复用通道】极大减少 WebSocket 并发，彻底解决学生端刷新才能更新的Bug
         const studentChannel = sb.channel('student_team_' + myTeam.id);
         studentChannel
             .on('postgres_changes', { event:'*', schema:'public', table:'oasis_teams', filter:`id=eq.${myTeam.id}` }, (p) => { 
@@ -752,8 +743,8 @@
         alert("契约已发送，等待对方确认盖章！");
     }
 
+    // ------------------ 修复后的处理转账防并发防扣款 ------------------
     async function handleContract(decision) {
-        // 【防抖修复】立即禁用按钮，防止学生狂点多次触发
         const buttons = document.querySelectorAll('#modal-receive button');
         buttons.forEach(b => b.disabled = true);
 
@@ -761,7 +752,6 @@
             if (decision === 'APPROVED') {
                 const { data: trans } = await sb.from('oasis_transactions').select('*').eq('id', pendingContractId).single();
                 
-                // 【核心修复1】如果该订单已经被处理过，直接拦截
                 if (trans.status !== 'PENDING') {
                     alert("该契约已被处理，请勿重复点击！");
                     return;
@@ -774,7 +764,6 @@
                     return;
                 }
                 
-                // 【核心修复2】去数据库拉取最新的自己资金，防并发覆盖
                 const { data: receiver } = await sb.from('oasis_teams').select('funds').eq('id', myTeam.id).single();
 
                 await sb.from('oasis_teams').update({ funds: sender.funds - trans.amount }).eq('id', trans.from_team_id);
